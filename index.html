@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fire/EMS Call Tracker</title>
+    <link rel="apple-touch-icon" href="https://i.ibb.co/6cwN2fbb/icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="PLEASANT">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -310,7 +315,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 <!-- Top Natures -->
-                <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
+                <div id="widget-natures" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
                     <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">Top Call Natures</h3>
                     <div id="stats-natures" class="space-y-3">
                         <!-- Populated by JS -->
@@ -319,7 +324,7 @@
                 </div>
 
                 <!-- Top Addresses (NEW) -->
-                <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
+                <div id="widget-addresses" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
                     <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">Top Addresses</h3>
                     <div id="stats-addresses" class="space-y-3">
                         <!-- Populated by JS -->
@@ -328,7 +333,7 @@
                 </div>
 
                 <!-- Mutual Aid Stats -->
-                <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
+                <div id="widget-mutual" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
                     <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">EMS Mutual Aid Breakdown</h3>
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div class="bg-gray-900/50 p-4 rounded-lg border border-gray-700 text-center">
@@ -347,7 +352,7 @@
                 </div>
 
                 <!-- Crew Breakdown Stats -->
-                <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
+                <div id="widget-crew" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
                     <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">EMS Crew Analysis</h3>
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div class="bg-gray-900/50 p-4 rounded-lg border border-gray-700 text-center">
@@ -361,14 +366,14 @@
                     </div>
                     <div class="bg-gray-900/30 p-3 rounded border border-gray-700 text-xs text-gray-400">
                         <p class="font-bold mb-1">SCHEDULE (EMS/BOTH ONLY):</p>
-                        <p>M-F: 06:00 - 18:00 (Day Crew)</p>
-                        <p>S-S: 08:00 - 18:00 (Day Crew)</p>
+                        <p id="stats-sched-text-wd">M-F: ...</p>
+                        <p id="stats-sched-text-we">S-S: ...</p>
                         <p>All other times: Volunteer</p>
                     </div>
                 </div>
 
                 <!-- Volunteer Disposition Stats -->
-                <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
+                <div id="widget-voldispo" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
                     <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">EMS Volunteer Dispositions</h3>
                     <div id="stats-vol-dispo" class="space-y-3">
                         <div class="text-gray-500 text-sm italic">No data available</div>
@@ -539,6 +544,18 @@
         let nextIncidentData = { id: '...', seq: 1, year: new Date().getFullYear() };
         let currentUser = null;
         let currentStatsYear = new Date().getFullYear(); // State for selected year
+        // New: Store dynamic configuration
+        let currentConfig = {
+            schedules: {}, // Keyed by year string "2025", "2026"
+            statsConfig: { // Default visible
+                showNatures: true,
+                showAddresses: true,
+                showMutual: true,
+                showCrew: true,
+                showVolDispo: true,
+                limit: 5
+            }
+        };
         
         // --- Auth & Init ---
         async function initApp() {
@@ -798,6 +815,23 @@
                         setW('th-mutual', data.widths.mutual);
                         setW('th-notes', data.widths.notes);
                     }
+
+                    // 6. Load Schedule (Year-based)
+                    if (data.schedules) {
+                        currentConfig.schedules = { ...currentConfig.schedules, ...data.schedules };
+                    } 
+                    // Migration fallback for older single schedule
+                    else if (data.schedule) {
+                        currentConfig.schedules["2025"] = data.schedule;
+                    }
+
+                    // 7. Load Stats Config
+                    if (data.stats) {
+                        currentConfig.statsConfig = { ...currentConfig.statsConfig, ...data.stats };
+                    }
+                    
+                    // Update stats immediately in case they are open
+                    updateStats();
                 }
             } catch (e) {
                 console.error("Failed to load config options", e);
@@ -1015,36 +1049,31 @@
 
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
-                        if (row.length < 5) continue; 
+                        if (row.length < 2) continue; // Basic check
 
                         try {
+                            // Column Indices based on Export Format (and Table Headers)
+                            // 0: Incident #
+                            // 1: Date/Time
+                            // 2: Nature
+                            // 3: Address
+                            // 4: Type
+                            // 5: Units
+                            // 6: Mutual Aid
+                            // 7: Disposition
+                            // 8: Notes
+
                             const incNum = row[0]?.trim().toUpperCase();
                             if (!incNum) continue;
 
                             const reported = row[1]?.trim(); 
                             const nature = row[2]?.trim().toUpperCase();
                             const address = row[3]?.trim().toUpperCase();
-                            // Old exports had columns: [Inc, Rep, Nat, Add, Type, MA To, MA From, Notes]
-                            // New export has columns: [Inc, Rep, Nat, Add, Type, Units, Mutual Aid, Disp, Notes]
-                            
-                            // Check header row (row 0) or infer based on length/content
-                            // For backward compatibility, this simple importer might need adjustments if
-                            // you plan to import files generated by the NEW exporter.
-                            // Assuming STANDARD OLD FORMAT for now or simple positional logic.
-                            
-                            // Let's try to grab based on standard indices, but be aware of the shift.
-                            // If you re-import a file exported with the NEW format, the indices change.
-                            // This importer is currently hardcoded for a specific layout.
-                            // For safety, I'll stick to the previous import logic but note that
-                            // re-importing the NEW format might need logic updates if columns shifted.
-                            // Given the prompt was just to change EXPORT, I will leave IMPORT logic alone 
-                            // unless you specifically ask to update the importer to match the new export format.
-                            
                             const typeRaw = row[4]?.trim().toUpperCase(); 
-                            // Logic assumes old format [Inc, Date, Nature, Addr, Type, MA To, MA From, Notes]
-                            const maTo = row[5]?.trim().toUpperCase();
-                            const maFrom = row[6]?.trim().toUpperCase();
-                            const notes = row[7]?.trim().toUpperCase();
+                            const units = row[5]?.trim().toUpperCase();
+                            const mutualAidCombined = row[6]?.trim(); // "Type - Dept"
+                            const disposition = row[7]?.trim().toUpperCase();
+                            const notes = row[8]?.trim().toUpperCase();
 
                             // 1. Parse Date/Time
                             let formattedDate = '';
@@ -1059,10 +1088,10 @@
                                 }
                             }
 
-                            // 2. Parse ID for sequencing
+                            // 2. Parse ID for sequencing (Support HT/PL)
                             const yearShort = incNum.substring(0, 2); 
                             const yearFull = 2000 + parseInt(yearShort);
-                            // MODIFIED to support both HT and PL for backward compatibility
+                            // Strip known prefixes to find sequence
                             const seqStr = incNum.replace(yearShort + 'HT', '').replace(yearShort + 'PL', '');
                             const seqNum = parseInt(seqStr);
 
@@ -1071,19 +1100,28 @@
                             if (typeRaw === 'FIRE') finalType = 'Fire';
                             if (typeRaw === 'EMS') finalType = 'EMS';
 
-                            // 4. Mutual Aid Logic
+                            // 4. Mutual Aid Logic (Parse "Given - Dept")
                             let isMa = false;
                             let maType = null;
                             let maDept = null;
 
-                            if (maTo) {
+                            if (mutualAidCombined && mutualAidCombined.length > 2) {
                                 isMa = true;
-                                maType = 'Given';
-                                maDept = maTo;
-                            } else if (maFrom) {
-                                isMa = true;
-                                maType = 'Received';
-                                maDept = maFrom;
+                                if (mutualAidCombined.toUpperCase().includes('GIVEN')) {
+                                    maType = 'Given';
+                                } else if (mutualAidCombined.toUpperCase().includes('RECEIVED')) {
+                                    maType = 'Received';
+                                } else {
+                                    // Fallback if parsing fails but content exists
+                                    maType = 'Given'; 
+                                }
+
+                                // Try to extract Dept (everything after " - ")
+                                if (mutualAidCombined.includes(' - ')) {
+                                    maDept = mutualAidCombined.split(' - ')[1]?.trim().toUpperCase() || '';
+                                } else {
+                                    maDept = '';
+                                }
                             }
 
                             const recordData = {
@@ -1095,11 +1133,12 @@
                                 callNature: nature,
                                 responseType: finalType,
                                 address: address,
-                                units: '', // Not in CSV
+                                units: units || '',
                                 mutualAid: isMa,
                                 mutualAidType: maType,
                                 mutualAidDept: maDept,
-                                notes: notes,
+                                emsDisposition: disposition || '',
+                                notes: notes || '',
                                 imported: true
                             };
 
@@ -1159,74 +1198,6 @@
             };
             reader.readAsText(file);
         };
-
-        // Custom CSV parser to handle quotes
-        function parseCSV(text) {
-            const rows = [];
-            let currentRow = [];
-            let currentVal = '';
-            let inQuotes = false;
-            
-            for (let i = 0; i < text.length; i++) {
-                const char = text[i];
-                const nextChar = text[i + 1];
-
-                if (inQuotes) {
-                    if (char === '"' && nextChar === '"') {
-                        currentVal += '"'; // escaped quote
-                        i++; // skip next
-                    } else if (char === '"') {
-                        inQuotes = false;
-                    } else {
-                        currentVal += char;
-                    }
-                } else {
-                    if (char === '"') {
-                        inQuotes = true;
-                    } else if (char === ',') {
-                        currentRow.push(currentVal);
-                        currentVal = '';
-                    } else if (char === '\n' || char === '\r') {
-                        if (char === '\r' && nextChar === '\n') i++; // handle CRLF
-                        if (currentVal || currentRow.length > 0) currentRow.push(currentVal);
-                        if (currentRow.length > 0) rows.push(currentRow);
-                        currentRow = [];
-                        currentVal = '';
-                    } else {
-                        currentVal += char;
-                    }
-                }
-            }
-            if (currentVal || currentRow.length > 0) {
-                currentRow.push(currentVal);
-                rows.push(currentRow);
-            }
-            return rows;
-        }
-
-        async function batchUpload(ops) {
-            // Firestore batch limit is 500
-            const chunkSize = 400; 
-            const total = ops.length;
-            
-            for (let i = 0; i < total; i += chunkSize) {
-                const chunk = ops.slice(i, i + chunkSize);
-                const batch = writeBatch(db);
-                
-                chunk.forEach(op => {
-                    if (op.type === 'create') {
-                        const ref = doc(collection(db, 'artifacts', appId, 'public', 'data', 'calls'));
-                        batch.set(ref, op.data);
-                    } else {
-                        const ref = doc(db, 'artifacts', appId, 'public', 'data', 'calls', op.id);
-                        batch.update(ref, op.data);
-                    }
-                });
-                
-                await batch.commit();
-                document.getElementById('importStatus').textContent = `PROCESSING ${Math.min(i + chunkSize, total)}/${total}...`;
-            }
-        }
 
         // --- Firestore Listener ---
         function setupRealtimeListener() {
@@ -1382,7 +1353,7 @@
             
             const nextSeq = maxSeq + 1;
             // UPDATED: Changed padding from 5 to 4 based on "25PL0000" requirement
-            const seqPadded = String(nextSeq).padStart(4, '0');
+            const seqPadded = String(nextSeq).padStart(5, '0');
             // UPDATED: Changed prefix from "HT" to "PL"
             const nextId = `${yearShort}PL${seqPadded}`;
 
@@ -1555,127 +1526,179 @@
             document.getElementById('stat-fire').textContent = fireCount;
             document.getElementById('stat-ems').textContent = emsCount;
 
-            // 2. Top Natures
-            const natureCounts = {};
-            thisYearCalls.forEach(c => {
-                const n = c.callNature || 'UNKNOWN';
-                natureCounts[n] = (natureCounts[n] || 0) + 1;
-            });
-            
-            const sortedNatures = Object.entries(natureCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5); 
+            // Get Config values
+            const config = currentConfig.statsConfig || {
+                showNatures: true,
+                showAddresses: true,
+                showMutual: true,
+                showCrew: true,
+                showVolDispo: true,
+                limit: 5
+            };
+            const limit = config.limit || 5;
 
-            const natureListEl = document.getElementById('stats-natures');
-            natureListEl.innerHTML = '';
-            
-            if (sortedNatures.length === 0) {
-                natureListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
+            // 2. Top Natures
+            const wNatures = document.getElementById('widget-natures');
+            if (!config.showNatures) {
+                wNatures.classList.add('hidden');
             } else {
-                const maxCount = sortedNatures[0][1];
+                wNatures.classList.remove('hidden');
                 
-                sortedNatures.forEach(([name, count]) => {
-                    const barWidth = (count / maxCount) * 100; 
-                    
-                    const row = document.createElement('div');
-                    row.innerHTML = `
-                        <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
-                            <span>${name}</span>
-                            <span>${count}</span>
-                        </div>
-                        <div class="w-full bg-gray-700 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
-                        </div>
-                    `;
-                    natureListEl.appendChild(row);
+                const natureCounts = {};
+                thisYearCalls.forEach(c => {
+                    const n = c.callNature || 'UNKNOWN';
+                    natureCounts[n] = (natureCounts[n] || 0) + 1;
                 });
+                
+                const sortedNatures = Object.entries(natureCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, limit); 
+
+                const natureListEl = document.getElementById('stats-natures');
+                natureListEl.innerHTML = '';
+                
+                if (sortedNatures.length === 0) {
+                    natureListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
+                } else {
+                    const maxCount = sortedNatures[0][1];
+                    
+                    sortedNatures.forEach(([name, count]) => {
+                        const barWidth = (count / maxCount) * 100; 
+                        
+                        const row = document.createElement('div');
+                        row.innerHTML = `
+                            <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
+                                <span>${name}</span>
+                                <span>${count}</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
+                            </div>
+                        `;
+                        natureListEl.appendChild(row);
+                    });
+                }
             }
 
             // 3. Top Addresses (NEW LOGIC)
-            const addressCounts = {};
-            thisYearCalls.forEach(c => {
-                let addr = c.address ? c.address.trim().toUpperCase() : 'UNKNOWN';
-                
-                // Special handling for I 70 normalization
-                if (addr.includes('I 70')) {
-                    addr = 'I 70'; 
-                }
-                
-                if (addr !== 'UNKNOWN' && addr !== '') {
-                    addressCounts[addr] = (addressCounts[addr] || 0) + 1;
-                }
-            });
-
-            const sortedAddresses = Object.entries(addressCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5); // Top 5
-
-            const addrListEl = document.getElementById('stats-addresses');
-            addrListEl.innerHTML = '';
-
-            if (sortedAddresses.length === 0) {
-                 addrListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
+            const wAddresses = document.getElementById('widget-addresses');
+            if (!config.showAddresses) {
+                wAddresses.classList.add('hidden');
             } else {
-                 const maxAddrCount = sortedAddresses[0][1];
-                 sortedAddresses.forEach(([addr, count]) => {
-                    const barWidth = (count / maxAddrCount) * 100;
-                    const row = document.createElement('div');
-                    row.innerHTML = `
-                        <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
-                            <span class="truncate pr-2" title="${addr}">${addr}</span>
-                            <span>${count}</span>
-                        </div>
-                        <div class="w-full bg-gray-700 rounded-full h-2">
-                            <div class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
-                        </div>
-                    `;
-                    addrListEl.appendChild(row);
-                 });
+                wAddresses.classList.remove('hidden');
+
+                const addressCounts = {};
+                thisYearCalls.forEach(c => {
+                    let addr = c.address ? c.address.trim().toUpperCase() : 'UNKNOWN';
+                    
+                    // Special handling for I 70 normalization
+                    if (addr.includes('I 70')) {
+                        addr = 'I 70'; 
+                    }
+                    
+                    if (addr !== 'UNKNOWN' && addr !== '') {
+                        addressCounts[addr] = (addressCounts[addr] || 0) + 1;
+                    }
+                });
+
+                const sortedAddresses = Object.entries(addressCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, limit); 
+
+                const addrListEl = document.getElementById('stats-addresses');
+                addrListEl.innerHTML = '';
+
+                if (sortedAddresses.length === 0) {
+                    addrListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
+                } else {
+                    const maxAddrCount = sortedAddresses[0][1];
+                    sortedAddresses.forEach(([addr, count]) => {
+                        const barWidth = (count / maxAddrCount) * 100;
+                        const row = document.createElement('div');
+                        row.innerHTML = `
+                            <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
+                                <span class="truncate pr-2" title="${addr}">${addr}</span>
+                                <span>${count}</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-purple-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
+                            </div>
+                        `;
+                        addrListEl.appendChild(row);
+                    });
+                }
             }
 
 
             // 4. Mutual Aid Breakdown
-            let givenCount = 0;
-            let receivedCount = 0;
-            const maDepts = {};
+            const wMutual = document.getElementById('widget-mutual');
+            if (!config.showMutual) {
+                wMutual.classList.add('hidden');
+            } else {
+                wMutual.classList.remove('hidden');
 
-            thisYearCalls.forEach(c => {
-                // EXCLUDE FIRE CALLS per user request
-                if (c.responseType === 'Fire') return;
+                let givenCount = 0;
+                let receivedCount = 0;
+                const maDepts = {};
 
-                if (c.mutualAid) {
-                    if (c.mutualAidType === 'Given') givenCount++;
-                    if (c.mutualAidType === 'Received') receivedCount++;
-                    
-                    if (c.mutualAidDept) {
-                        const depts = c.mutualAidDept.split(',').map(s => s.trim());
-                        depts.forEach(d => {
-                            if(d) maDepts[d] = (maDepts[d] || 0) + 1;
-                        });
+                thisYearCalls.forEach(c => {
+                    // EXCLUDE FIRE CALLS per user request
+                    if (c.responseType === 'Fire') return;
+
+                    if (c.mutualAid) {
+                        if (c.mutualAidType === 'Given') givenCount++;
+                        if (c.mutualAidType === 'Received') receivedCount++;
+                        
+                        if (c.mutualAidDept) {
+                            const depts = c.mutualAidDept.split(',').map(s => s.trim());
+                            depts.forEach(d => {
+                                if(d) maDepts[d] = (maDepts[d] || 0) + 1;
+                            });
+                        }
                     }
-                }
-            });
+                });
 
-            document.getElementById('stat-ma-given').textContent = givenCount;
-            document.getElementById('stat-ma-received').textContent = receivedCount;
+                document.getElementById('stat-ma-given').textContent = givenCount;
+                document.getElementById('stat-ma-received').textContent = receivedCount;
 
-            const sortedDepts = Object.entries(maDepts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 5); 
+                const sortedDepts = Object.entries(maDepts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, limit); 
 
-            const deptListEl = document.getElementById('stats-ma-depts');
-            deptListEl.innerHTML = '';
-            sortedDepts.forEach(([name, count]) => {
-                const li = document.createElement('li');
-                li.className = "flex justify-between border-b border-gray-700 py-1 last:border-0";
-                li.innerHTML = `<span>${name}</span> <span class="font-bold text-white">${count}</span>`;
-                deptListEl.appendChild(li);
-            });
+                const deptListEl = document.getElementById('stats-ma-depts');
+                deptListEl.innerHTML = '';
+                sortedDepts.forEach(([name, count]) => {
+                    const li = document.createElement('li');
+                    li.className = "flex justify-between border-b border-gray-700 py-1 last:border-0";
+                    li.innerHTML = `<span>${name}</span> <span class="font-bold text-white">${count}</span>`;
+                    deptListEl.appendChild(li);
+                });
+            }
 
-            // 5. Crew Analysis & 6. Volunteer Disposition Stats
+            // 5. Crew Analysis
+            const wCrew = document.getElementById('widget-crew');
+            // 6. Volunteer Disposition Stats
+            const wVolDispo = document.getElementById('widget-voldispo');
+
+            // Logic shared for crew & vol stats
             let dayCrewCount = 0;
             let volunteerCount = 0;
             const volDispCounts = {};
+
+            // Dynamic Schedule Logic
+            let sched = { wdStart: 6, wdEnd: 18, weStart: 8, weEnd: 18 };
+            if (currentConfig.schedules && currentConfig.schedules[String(currentStatsYear)]) {
+                sched = currentConfig.schedules[String(currentStatsYear)];
+            }
+
+            const wdStart = sched.wdStart;
+            const wdEnd = sched.wdEnd;
+            const weStart = sched.weStart;
+            const weEnd = sched.weEnd;
+
+            // Update UI Text
+            document.getElementById('stats-sched-text-wd').textContent = `M-F: ${String(wdStart).padStart(2,'0')}:00 - ${String(wdEnd).padStart(2,'0')}:00 (Day Crew)`;
+            document.getElementById('stats-sched-text-we').textContent = `S-S: ${String(weStart).padStart(2,'0')}:00 - ${String(weEnd).padStart(2,'0')}:00 (Day Crew)`;
 
             thisYearCalls.forEach(c => {
                 // Exclude Fire calls from crew & vol stats
@@ -1692,15 +1715,15 @@
 
                         let isDayCrew = false;
 
-                        // M-F (1-5): 06:00 - 18:00 (hours 6 through 17)
+                        // M-F (1-5)
                         if (day >= 1 && day <= 5) {
-                            if (hour >= 6 && hour < 18) {
+                            if (hour >= wdStart && hour < wdEnd) {
                                 isDayCrew = true;
                             }
                         } 
-                        // S-S (0, 6): 08:00 - 18:00 (hours 8 through 17)
+                        // S-S (0, 6)
                         else {
-                            if (hour >= 8 && hour < 18) {
+                            if (hour >= weStart && hour < weEnd) {
                                 isDayCrew = true;
                             }
                         }
@@ -1720,34 +1743,46 @@
                 }
             });
 
-            document.getElementById('stat-crew-day').textContent = dayCrewCount;
-            document.getElementById('stat-crew-vol').textContent = volunteerCount;
-
-            // Render Volunteer Disposition Stats
-            const volDispListEl = document.getElementById('stats-vol-dispo');
-            volDispListEl.innerHTML = '';
-            
-            const sortedVolDisps = Object.entries(volDispCounts)
-                .sort((a, b) => b[1] - a[1]);
-
-            if (sortedVolDisps.length === 0) {
-                volDispListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
+            // Apply Visibility for Crew Widget
+            if (!config.showCrew) {
+                wCrew.classList.add('hidden');
             } else {
-                const maxCount = sortedVolDisps[0][1];
-                sortedVolDisps.forEach(([name, count]) => {
-                    const barWidth = (count / maxCount) * 100;
-                    const row = document.createElement('div');
-                    row.innerHTML = `
-                        <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
-                            <span>${name}</span>
-                            <span>${count}</span>
-                        </div>
-                        <div class="w-full bg-gray-700 rounded-full h-2">
-                            <div class="bg-orange-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
-                        </div>
-                    `;
-                    volDispListEl.appendChild(row);
-                });
+                wCrew.classList.remove('hidden');
+                document.getElementById('stat-crew-day').textContent = dayCrewCount;
+                document.getElementById('stat-crew-vol').textContent = volunteerCount;
+            }
+
+            // Apply Visibility for Vol Dispo Widget
+            if (!config.showVolDispo) {
+                wVolDispo.classList.add('hidden');
+            } else {
+                wVolDispo.classList.remove('hidden');
+                // Render Volunteer Disposition Stats
+                const volDispListEl = document.getElementById('stats-vol-dispo');
+                volDispListEl.innerHTML = '';
+                
+                const sortedVolDisps = Object.entries(volDispCounts)
+                    .sort((a, b) => b[1] - a[1]); // Always show all dispositions, no limit applied here as requested usually
+
+                if (sortedVolDisps.length === 0) {
+                    volDispListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
+                } else {
+                    const maxCount = sortedVolDisps[0][1];
+                    sortedVolDisps.forEach(([name, count]) => {
+                        const barWidth = (count / maxCount) * 100;
+                        const row = document.createElement('div');
+                        row.innerHTML = `
+                            <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
+                                <span>${name}</span>
+                                <span>${count}</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-orange-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
+                            </div>
+                        `;
+                        volDispListEl.appendChild(row);
+                    });
+                }
             }
         }
 

@@ -22,7 +22,7 @@
             <i class="fa-solid fa-gears text-red-500 text-3xl"></i>
             <div>
                 <h1 class="text-2xl font-bold">Tracker Configuration</h1>
-                <p class="text-gray-400 text-sm">Manage dropdown options and table layout</p>
+                <p class="text-gray-400 text-sm">Manage dropdown options, schedule, statistics, and layout</p>
             </div>
             <div id="status" class="ml-auto text-sm font-mono text-yellow-500">Connecting...</div>
         </header>
@@ -71,6 +71,105 @@
                 <ul id="list-dept" class="list-container space-y-2 flex-grow pr-2"></ul>
             </div>
 
+        </div>
+
+        <!-- SECTION: CREW SCHEDULE -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 shadow-lg mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b border-gray-700 pb-2 gap-2">
+                <h2 class="font-bold text-lg text-orange-400">
+                    <i class="fa-solid fa-clock mr-2"></i>Day Crew Schedule (24h)
+                </h2>
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-400 uppercase font-bold">Config Year:</label>
+                    <select id="sched-year-select" onchange="changeScheduleYear()" class="bg-gray-900 border border-gray-600 text-white text-sm rounded focus:ring-orange-500 px-2 py-1 font-bold">
+                        <option value="2024">2024</option>
+                        <option value="2025" selected>2025</option>
+                        <option value="2026">2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                        <option value="2029">2029</option>
+                        <option value="2030">2030</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Weekday -->
+                <div class="bg-gray-900/50 p-4 rounded-lg border border-gray-600">
+                    <h3 class="text-sm font-bold text-gray-300 uppercase mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-week"></i> Weekdays (Mon-Fri)
+                    </h3>
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1 uppercase font-bold">Start Hour (0-23)</label>
+                            <input type="number" id="sched-wd-start" min="0" max="23" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-orange-500 outline-none">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1 uppercase font-bold">End Hour (0-23)</label>
+                            <input type="number" id="sched-wd-end" min="0" max="23" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-orange-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+                <!-- Weekend -->
+                <div class="bg-gray-900/50 p-4 rounded-lg border border-gray-600">
+                    <h3 class="text-sm font-bold text-gray-300 uppercase mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-day"></i> Weekends (Sat-Sun)
+                    </h3>
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1 uppercase font-bold">Start Hour (0-23)</label>
+                            <input type="number" id="sched-we-start" min="0" max="23" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-orange-500 outline-none">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-500 mb-1 uppercase font-bold">End Hour (0-23)</label>
+                            <input type="number" id="sched-we-end" min="0" max="23" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-orange-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-3 italic">Calls between Start and End hours are marked "Day Crew". All others are "Volunteer". Settings apply to the selected year.</p>
+        </div>
+
+        <!-- SECTION: STATISTICS DISPLAY -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 shadow-lg mb-6">
+            <h2 class="font-bold text-lg mb-4 text-pink-400 border-b border-gray-700 pb-2">
+                <i class="fa-solid fa-chart-line mr-2"></i>Statistics Dashboard Config
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-xs text-gray-500 mb-3 uppercase font-bold">Visible Widgets</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center space-x-3 cursor-pointer p-2 bg-gray-900/50 rounded border border-gray-700 hover:border-pink-500 transition">
+                            <input type="checkbox" id="stats-show-natures" class="w-4 h-4 text-pink-500 rounded bg-gray-800 border-gray-600 focus:ring-pink-500">
+                            <span class="text-gray-300 text-sm font-medium">Top Call Natures</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer p-2 bg-gray-900/50 rounded border border-gray-700 hover:border-pink-500 transition">
+                            <input type="checkbox" id="stats-show-addresses" class="w-4 h-4 text-pink-500 rounded bg-gray-800 border-gray-600 focus:ring-pink-500">
+                            <span class="text-gray-300 text-sm font-medium">Top Addresses</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer p-2 bg-gray-900/50 rounded border border-gray-700 hover:border-pink-500 transition">
+                            <input type="checkbox" id="stats-show-mutual" class="w-4 h-4 text-pink-500 rounded bg-gray-800 border-gray-600 focus:ring-pink-500">
+                            <span class="text-gray-300 text-sm font-medium">Mutual Aid Breakdown</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer p-2 bg-gray-900/50 rounded border border-gray-700 hover:border-pink-500 transition">
+                            <input type="checkbox" id="stats-show-crew" class="w-4 h-4 text-pink-500 rounded bg-gray-800 border-gray-600 focus:ring-pink-500">
+                            <span class="text-gray-300 text-sm font-medium">Crew Analysis</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer p-2 bg-gray-900/50 rounded border border-gray-700 hover:border-pink-500 transition">
+                            <input type="checkbox" id="stats-show-voldispo" class="w-4 h-4 text-pink-500 rounded bg-gray-800 border-gray-600 focus:ring-pink-500">
+                            <span class="text-gray-300 text-sm font-medium">Volunteer Dispositions</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xs text-gray-500 mb-3 uppercase font-bold">List Settings</h3>
+                    <div class="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
+                        <label class="block text-sm font-bold text-gray-300 mb-2">Items in Top Lists</label>
+                        <input type="number" id="stats-list-limit" min="3" max="20" placeholder="5" class="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-pink-500 outline-none">
+                        <p class="text-xs text-gray-500 mt-2 italic">Controls how many items appear in Top Natures, Addresses, and Departments lists.</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- SECTION: TABLE LAYOUT -->
@@ -150,7 +249,21 @@
             natures: ["STRUCTURE FIRE", "MEDICAL EMERGENCY", "MVA", "FIRE ALARM"], 
             units: ["E1", "M1", "C1"],
             depts: ["NORTH FD", "SOUTH FD"],
-            widths: {} // Stores column widths
+            widths: {}, 
+            // Store schedules by year string. Default seed data.
+            schedules: { 
+                "2025": { wdStart: 8, wdEnd: 16, weStart: 8, weEnd: 18 },
+                "2026": { wdStart: 8, wdEnd: 18, weStart: 8, weEnd: 18 }
+            },
+            // Stats Config Defaults
+            stats: {
+                showNatures: true,
+                showAddresses: true,
+                showMutual: true,
+                showCrew: true,
+                showVolDispo: true,
+                limit: 5
+            }
         };
 
         // UI References
@@ -175,6 +288,21 @@
                 units: document.getElementById('w-units'),
                 mutual: document.getElementById('w-mutual'),
                 notes: document.getElementById('w-notes')
+            },
+            schedule: {
+                year: document.getElementById('sched-year-select'),
+                wdStart: document.getElementById('sched-wd-start'),
+                wdEnd: document.getElementById('sched-wd-end'),
+                weStart: document.getElementById('sched-we-start'),
+                weEnd: document.getElementById('sched-we-end')
+            },
+            stats: {
+                showNatures: document.getElementById('stats-show-natures'),
+                showAddresses: document.getElementById('stats-show-addresses'),
+                showMutual: document.getElementById('stats-show-mutual'),
+                showCrew: document.getElementById('stats-show-crew'),
+                showVolDispo: document.getElementById('stats-show-voldispo'),
+                limit: document.getElementById('stats-list-limit')
             }
         };
 
@@ -213,6 +341,18 @@
                     state.units = data.units || state.units;
                     state.depts = data.depts || state.depts;
                     state.widths = data.widths || {};
+                    
+                    // Merge schedules
+                    if (data.schedules) {
+                        state.schedules = { ...state.schedules, ...data.schedules };
+                    } else if (data.schedule) {
+                         state.schedules["2025"] = data.schedule;
+                    }
+
+                    // Merge Stats Config
+                    if (data.stats) {
+                        state.stats = { ...state.stats, ...data.stats };
+                    }
                 }
                 renderAll();
             } catch (error) {
@@ -225,6 +365,9 @@
             const btn = document.getElementById('btn-save');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Saving...';
             btn.disabled = true;
+
+            // Capture current year schedule form data
+            captureCurrentSchedule();
 
             // Capture widths
             const newWidths = {
@@ -239,6 +382,16 @@
             };
             state.widths = newWidths;
 
+            // Capture Stats Config
+            state.stats = {
+                showNatures: els.stats.showNatures.checked,
+                showAddresses: els.stats.showAddresses.checked,
+                showMutual: els.stats.showMutual.checked,
+                showCrew: els.stats.showCrew.checked,
+                showVolDispo: els.stats.showVolDispo.checked,
+                limit: parseInt(els.stats.limit.value) || 5
+            };
+
             try {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'callTrackerConfig', 'options');
                 await setDoc(docRef, {
@@ -246,6 +399,8 @@
                     units: state.units,
                     depts: state.depts,
                     widths: state.widths,
+                    schedules: state.schedules, 
+                    stats: state.stats,
                     updatedAt: new Date().toISOString()
                 });
                 btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Saved!';
@@ -259,6 +414,39 @@
                 btn.disabled = false;
             }
         };
+
+        // Schedule Logic
+        window.changeScheduleYear = function() {
+            renderScheduleInputs();
+        }
+
+        const schedInputs = [els.schedule.wdStart, els.schedule.wdEnd, els.schedule.weStart, els.schedule.weEnd];
+        schedInputs.forEach(input => {
+            input.addEventListener('change', captureCurrentSchedule);
+            input.addEventListener('input', captureCurrentSchedule);
+        });
+
+        function captureCurrentSchedule() {
+            const year = els.schedule.year.value;
+            if (!state.schedules[year]) state.schedules[year] = {};
+            
+            state.schedules[year] = {
+                wdStart: parseInt(els.schedule.wdStart.value) || 0,
+                wdEnd: parseInt(els.schedule.wdEnd.value) || 0,
+                weStart: parseInt(els.schedule.weStart.value) || 0,
+                weEnd: parseInt(els.schedule.weEnd.value) || 0
+            };
+        }
+
+        function renderScheduleInputs() {
+            const year = els.schedule.year.value;
+            const config = state.schedules[year] || { wdStart: 6, wdEnd: 18, weStart: 8, weEnd: 18 }; 
+            
+            els.schedule.wdStart.value = config.wdStart;
+            els.schedule.wdEnd.value = config.wdEnd;
+            els.schedule.weStart.value = config.weStart;
+            els.schedule.weEnd.value = config.weEnd;
+        }
 
         // List Management
         window.addItem = function(type) {
@@ -299,6 +487,19 @@
                 els.widths.units.value = state.widths.units || '';
                 els.widths.mutual.value = state.widths.mutual || '';
                 els.widths.notes.value = state.widths.notes || '';
+            }
+
+            // Render Schedule
+            renderScheduleInputs();
+
+            // Render Stats
+            if (state.stats) {
+                els.stats.showNatures.checked = state.stats.showNatures;
+                els.stats.showAddresses.checked = state.stats.showAddresses;
+                els.stats.showMutual.checked = state.stats.showMutual;
+                els.stats.showCrew.checked = state.stats.showCrew;
+                els.stats.showVolDispo.checked = state.stats.showVolDispo;
+                els.stats.limit.value = state.stats.limit || 5;
             }
         }
 
