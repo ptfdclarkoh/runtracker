@@ -10,20 +10,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        body {
-            overflow-y: auto; /* Allow scrolling if needed, but aim for fit */
-        }
-        /* Custom scrollbar for dark theme */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1f2937; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #4b5563; 
-            border-radius: 4px;
+        /* Force fixed full screen, no scrollbars */
+        body, html {
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
         }
         .fade-in {
             animation: fadeIn 0.5s ease-in-out;
@@ -34,10 +25,10 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col">
+<body class="bg-gray-900 text-gray-100 font-sans h-screen w-screen flex flex-col overflow-hidden">
 
-    <!-- Navbar / Header -->
-    <nav class="bg-gray-800 border-b border-gray-700 p-4 sticky top-0 z-50 shadow-xl">
+    <!-- Navbar / Header (Fixed Height) -->
+    <nav class="bg-gray-800 border-b border-gray-700 p-4 shadow-xl flex-none z-50">
         <div class="max-w-[98%] mx-auto flex justify-between items-center">
             <div class="flex items-center gap-4">
                 <i class="fa-solid fa-chart-pie text-red-500 text-3xl"></i>
@@ -58,11 +49,11 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-grow p-6 w-full max-w-[98%] mx-auto fade-in">
+    <!-- Main Content (Flex Grow to fill remaining height) -->
+    <main class="flex-grow p-6 w-full max-w-[98%] mx-auto fade-in flex flex-col min-h-0">
         
-        <!-- Summary Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 mt-4">
+        <!-- Summary Stats Cards (Fixed Height portion) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 flex-none">
             <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-lg flex items-center justify-between relative overflow-hidden group">
                 <div class="absolute right-0 top-0 h-full w-2 bg-white"></div>
                 <div>
@@ -91,37 +82,37 @@
             </div>
         </div>
 
-        <!-- Detailed Stats Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+        <!-- Detailed Stats Grid (Fills remaining height) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
             
             <!-- Column 1 -->
-            <div class="space-y-6">
+            <div class="flex flex-col gap-6 h-full min-h-0">
                 <!-- Top Natures -->
-                <div id="widget-natures" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5">
-                    <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2 flex items-center gap-2">
+                <div id="widget-natures" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5 flex-1 flex flex-col min-h-0">
+                    <h3 class="font-bold text-lg text-white mb-3 uppercase border-b border-gray-700 pb-2 flex-none flex items-center gap-2">
                         <i class="fa-solid fa-list-ol text-gray-500"></i> Top Natures
                     </h3>
-                    <div id="stats-natures" class="space-y-4">
+                    <div id="stats-natures" class="space-y-3 overflow-hidden flex-1">
                         <div class="text-gray-500 text-sm italic">Loading...</div>
                     </div>
                 </div>
 
                 <!-- Top Addresses -->
-                <div id="widget-addresses" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5">
-                    <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2 flex items-center gap-2">
+                <div id="widget-addresses" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5 flex-1 flex flex-col min-h-0">
+                    <h3 class="font-bold text-lg text-white mb-3 uppercase border-b border-gray-700 pb-2 flex-none flex items-center gap-2">
                         <i class="fa-solid fa-map-location-dot text-gray-500"></i> Frequent Locations
                     </h3>
-                    <div id="stats-addresses" class="space-y-4">
+                    <div id="stats-addresses" class="space-y-3 overflow-hidden flex-1">
                         <div class="text-gray-500 text-sm italic">Loading...</div>
                     </div>
                 </div>
             </div>
 
             <!-- Column 2 -->
-            <div class="space-y-6">
+            <div class="flex flex-col gap-6 h-full min-h-0">
                 <!-- Crew Breakdown Stats -->
-                <div id="widget-crew" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5">
-                    <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2 flex items-center gap-2">
+                <div id="widget-crew" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5 flex-none">
+                    <h3 class="font-bold text-lg text-white mb-3 uppercase border-b border-gray-700 pb-2 flex items-center gap-2">
                         <i class="fa-solid fa-users text-gray-500"></i> EMS Crew Analysis
                     </h3>
                     <div class="grid grid-cols-2 gap-4 mb-4">
@@ -140,25 +131,25 @@
                     </div>
                 </div>
 
-                <!-- Volunteer Disposition Stats -->
-                <div id="widget-voldispo" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5 flex-grow">
-                    <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2 flex items-center gap-2">
+                <!-- Volunteer Disposition Stats (Takes remaining space in Col 2) -->
+                <div id="widget-voldispo" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5 flex-1 flex flex-col min-h-0">
+                    <h3 class="font-bold text-lg text-white mb-3 uppercase border-b border-gray-700 pb-2 flex-none flex items-center gap-2">
                         <i class="fa-solid fa-clipboard-check text-gray-500"></i> Volunteer Outcomes
                     </h3>
-                    <div id="stats-vol-dispo" class="space-y-3">
+                    <div id="stats-vol-dispo" class="space-y-3 overflow-hidden flex-1">
                         <div class="text-gray-500 text-sm italic">Loading...</div>
                     </div>
                 </div>
             </div>
 
             <!-- Column 3 -->
-             <div class="space-y-6">
-                 <!-- Mutual Aid Stats -->
-                <div id="widget-mutual" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5">
-                    <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2 flex items-center gap-2">
+             <div class="flex flex-col gap-6 h-full min-h-0">
+                 <!-- Mutual Aid Stats (Takes full height of Col 3) -->
+                <div id="widget-mutual" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-5 flex-1 flex flex-col min-h-0">
+                    <h3 class="font-bold text-lg text-white mb-3 uppercase border-b border-gray-700 pb-2 flex-none flex items-center gap-2">
                         <i class="fa-solid fa-handshake text-gray-500"></i> EMS Mutual Aid
                     </h3>
-                    <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-2 gap-4 mb-6 flex-none">
                         <div class="bg-gray-900/50 p-4 rounded-lg border border-gray-700 text-center relative overflow-hidden">
                             <i class="fa-solid fa-arrow-right-from-bracket absolute top-1 right-2 text-gray-700 opacity-30 text-2xl"></i>
                             <span class="block text-gray-400 text-xs uppercase font-bold">Given</span>
@@ -170,8 +161,8 @@
                             <span id="stat-ma-received" class="text-3xl font-bold text-green-400">0</span>
                         </div>
                     </div>
-                    <h4 class="text-xs text-gray-400 uppercase font-bold mb-2">Top Partners</h4>
-                    <ul id="stats-ma-depts" class="text-sm space-y-2 text-gray-300">
+                    <h4 class="text-xs text-gray-400 uppercase font-bold mb-2 flex-none">Top Partners</h4>
+                    <ul id="stats-ma-depts" class="text-sm space-y-2 text-gray-300 overflow-hidden flex-1">
                         <!-- Populated by JS -->
                     </ul>
                 </div>
