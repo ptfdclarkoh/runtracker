@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fire/EMS Call Tracker</title>
-    <link rel="apple-touch-icon" href="https://i.ibb.co/6cwN2fbb/icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://i.ibb.co/6cwN2fbb/icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="PLEASANT">
@@ -391,9 +391,12 @@
         <div class="bg-gray-800 w-full max-w-2xl rounded-xl shadow-2xl border border-gray-700 flex flex-col max-h-[90vh]">
             
             <div class="p-6 border-b border-gray-700 bg-gray-850 flex justify-between items-center">
-                <div>
+                <div class="w-full mr-4">
                     <h2 class="text-xl font-bold text-white uppercase">Edit Incident</h2>
-                    <p id="modalIncidentId" class="text-yellow-400 font-mono text-sm font-bold mt-1">...</p>
+                    <div class="mt-2">
+                         <label class="text-xs text-gray-500 uppercase font-bold">Incident ID</label>
+                         <input type="text" id="edit_incidentNumber" class="bg-gray-900 border border-gray-600 rounded px-3 py-1 text-yellow-400 font-mono text-sm font-bold w-full focus:ring-1 focus:ring-yellow-500 outline-none uppercase" oninput="forceCaps(this)">
+                    </div>
                 </div>
                 <button onclick="closeEditModal()" class="text-gray-400 hover:text-white transition">
                     <i class="fa-solid fa-xmark text-2xl"></i>
@@ -599,7 +602,7 @@
 
             // Populate Modal Fields
             document.getElementById('edit_docId').value = id;
-            document.getElementById('modalIncidentId').textContent = call.incidentNumber;
+            document.getElementById('edit_incidentNumber').value = call.incidentNumber || '';
             document.getElementById('edit_dispatchDate').value = call.dispatchDate;
             document.getElementById('edit_dispatchTime').value = call.dispatchTime;
             document.getElementById('edit_callNature').value = call.callNature;
@@ -649,7 +652,27 @@
                     ? document.getElementById('edit_emsDisposition').value 
                     : null;
                 
+                const newIncNum = document.getElementById('edit_incidentNumber').value.toUpperCase();
+
+                // Attempt to parse sequence for sorting from the new ID
+                let newSeq = null;
+                let newYear = null;
+
+                try {
+                    // Basic heuristics based on current format YYPLXXXX or YYHTXXXX
+                    if (/^\d{2}/.test(newIncNum)) {
+                        const yearShort = newIncNum.substring(0, 2);
+                        newYear = 2000 + parseInt(yearShort);
+                        // Extract numeric part at end of string
+                        const match = newIncNum.match(/(\d+)$/);
+                        if (match) {
+                             newSeq = parseInt(match[1]);
+                        }
+                    }
+                } catch(e) { console.log("Could not parse sequence from new ID", e); }
+
                 const callData = {
+                    incidentNumber: newIncNum,
                     dispatchDate: document.getElementById('edit_dispatchDate').value,
                     dispatchTime: document.getElementById('edit_dispatchTime').value,
                     callNature: document.getElementById('edit_callNature').value.toUpperCase(),
@@ -664,6 +687,10 @@
                     lastModified: new Date().toISOString(),
                     lastModifiedBy: currentUser.uid
                 };
+
+                // Only update sequence/year if successfully parsed, to maintain sorting
+                if (newSeq !== null) callData.sequence = newSeq;
+                if (newYear !== null) callData.year = newYear;
 
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'calls', id);
                 await updateDoc(docRef, callData);
