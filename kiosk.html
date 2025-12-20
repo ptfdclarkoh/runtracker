@@ -150,15 +150,40 @@
                         <i class="fa-solid fa-handshake text-gray-500"></i> EMS Mutual Aid
                     </h3>
                     <div class="grid grid-cols-2 gap-4 mb-6 flex-none">
+                        <!-- Given Box -->
                         <div class="bg-gray-900/50 p-4 rounded-lg border border-gray-700 text-center relative overflow-hidden">
                             <i class="fa-solid fa-arrow-right-from-bracket absolute top-1 right-2 text-gray-700 opacity-30 text-2xl"></i>
-                            <span class="block text-gray-400 text-xs uppercase font-bold">Given</span>
-                            <span id="stat-ma-given" class="text-3xl font-bold text-yellow-400">0</span>
+                            <span class="block text-gray-400 text-xs uppercase font-bold mb-1">Given</span>
+                            <span id="stat-ma-given" class="text-3xl font-bold text-yellow-400 block mb-2">0</span>
+                            
+                            <div class="flex justify-center gap-3 text-xs border-t border-gray-700 pt-2">
+                                <div>
+                                    <span class="text-gray-500 block text-[10px]">DAY</span>
+                                    <span id="stat-ma-given-day" class="font-bold text-blue-400">0</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 block text-[10px]">VOL</span>
+                                    <span id="stat-ma-given-vol" class="font-bold text-orange-400">0</span>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Received Box -->
                         <div class="bg-gray-900/50 p-4 rounded-lg border border-gray-700 text-center relative overflow-hidden">
                             <i class="fa-solid fa-arrow-right-to-bracket absolute top-1 right-2 text-gray-700 opacity-30 text-2xl"></i>
-                            <span class="block text-gray-400 text-xs uppercase font-bold">Received</span>
-                            <span id="stat-ma-received" class="text-3xl font-bold text-green-400">0</span>
+                            <span class="block text-gray-400 text-xs uppercase font-bold mb-1">Received</span>
+                            <span id="stat-ma-received" class="text-3xl font-bold text-green-400 block mb-2">0</span>
+
+                            <div class="flex justify-center gap-3 text-xs border-t border-gray-700 pt-2">
+                                <div>
+                                    <span class="text-gray-500 block text-[10px]">DAY</span>
+                                    <span id="stat-ma-received-day" class="font-bold text-blue-400">0</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 block text-[10px]">VOL</span>
+                                    <span id="stat-ma-received-vol" class="font-bold text-orange-400">0</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <h4 class="text-xs text-gray-400 uppercase font-bold mb-2 flex-none">Top Partners</h4>
@@ -296,6 +321,34 @@
             const config = currentConfig.statsConfig;
             const limit = config.limit || 8;
 
+            // Load Schedule for Time-Based Calcs (Moved UP for Mutual Aid use)
+            let sched = { wdStart: 6, wdEnd: 18, weStart: 8, weEnd: 18 };
+            if (currentConfig.schedules && currentConfig.schedules[String(currentStatsYear)]) {
+                sched = currentConfig.schedules[String(currentStatsYear)];
+            }
+            const { wdStart, wdEnd, weStart, weEnd } = sched;
+
+            // Helper for Day Crew Check
+            const checkDayCrew = (c) => {
+                if (!c.dispatchDate || !c.dispatchTime) return false;
+                try {
+                    const [y, m, d] = c.dispatchDate.split('-').map(Number);
+                    const [h, min] = c.dispatchTime.split(':').map(Number);
+                    const dateObj = new Date(y, m - 1, d, h, min);
+                    const day = dateObj.getDay(); 
+                    const hour = h;
+
+                    // M-F (1-5)
+                    if (day >= 1 && day <= 5) {
+                        return (hour >= wdStart && hour < wdEnd);
+                    } 
+                    // S-S (0, 6)
+                    else {
+                        return (hour >= weStart && hour < weEnd);
+                    }
+                } catch(e) { return false; }
+            };
+
             // 2. Top Natures
             const wNatures = document.getElementById('widget-natures');
             if (config.showNatures) {
@@ -384,13 +437,25 @@
                 wMutual.classList.remove('hidden');
                 let givenCount = 0;
                 let receivedCount = 0;
+                // Breakdown vars
+                let givenDay = 0, givenVol = 0;
+                let receivedDay = 0, receivedVol = 0;
+
                 const maDepts = {};
 
                 thisYearCalls.forEach(c => {
                     if (c.responseType === 'Fire') return;
                     if (c.mutualAid) {
-                        if (c.mutualAidType === 'Given') givenCount++;
-                        if (c.mutualAidType === 'Received') receivedCount++;
+                        const isDay = checkDayCrew(c);
+
+                        if (c.mutualAidType === 'Given') {
+                            givenCount++;
+                            if (isDay) givenDay++; else givenVol++;
+                        }
+                        if (c.mutualAidType === 'Received') {
+                            receivedCount++;
+                            if (isDay) receivedDay++; else receivedVol++;
+                        }
                         if (c.mutualAidDept) {
                             const depts = c.mutualAidDept.split(',').map(s => s.trim());
                             depts.forEach(d => { if(d) maDepts[d] = (maDepts[d] || 0) + 1; });
@@ -400,6 +465,11 @@
 
                 document.getElementById('stat-ma-given').textContent = givenCount;
                 document.getElementById('stat-ma-received').textContent = receivedCount;
+                // Breakdown UI
+                document.getElementById('stat-ma-given-day').textContent = givenDay;
+                document.getElementById('stat-ma-given-vol').textContent = givenVol;
+                document.getElementById('stat-ma-received-day').textContent = receivedDay;
+                document.getElementById('stat-ma-received-vol').textContent = receivedVol;
 
                 const sortedDepts = Object.entries(maDepts).sort((a, b) => b[1] - a[1]).slice(0, limit); 
                 const deptListEl = document.getElementById('stats-ma-depts');
@@ -427,40 +497,20 @@
             let volunteerCount = 0;
             const volDispCounts = {};
 
-            let sched = { wdStart: 6, wdEnd: 18, weStart: 8, weEnd: 18 };
-            if (currentConfig.schedules && currentConfig.schedules[String(currentStatsYear)]) {
-                sched = currentConfig.schedules[String(currentStatsYear)];
-            }
-            const { wdStart, wdEnd, weStart, weEnd } = sched;
-
             document.getElementById('stats-sched-text-wd').textContent = `M-F: ${String(wdStart).padStart(2,'0')}:00 - ${String(wdEnd).padStart(2,'0')}:00`;
             document.getElementById('stats-sched-text-we').textContent = `S-S: ${String(weStart).padStart(2,'0')}:00 - ${String(weEnd).padStart(2,'0')}:00`;
 
             thisYearCalls.forEach(c => {
                 if (c.responseType === 'Fire') return;
-                if (c.dispatchDate && c.dispatchTime) {
-                    try {
-                        const [y, m, d] = c.dispatchDate.split('-').map(Number);
-                        const [h, min] = c.dispatchTime.split(':').map(Number);
-                        const dateObj = new Date(y, m - 1, d, h, min);
-                        const day = dateObj.getDay(); 
-                        const hour = h;
+                
+                const isDayCrew = checkDayCrew(c);
 
-                        let isDayCrew = false;
-                        if (day >= 1 && day <= 5) {
-                            if (hour >= wdStart && hour < wdEnd) isDayCrew = true;
-                        } else {
-                            if (hour >= weStart && hour < weEnd) isDayCrew = true;
-                        }
-
-                        if (isDayCrew) {
-                            dayCrewCount++;
-                        } else {
-                            volunteerCount++;
-                            const disp = c.emsDisposition || 'NOT RECORDED';
-                            volDispCounts[disp] = (volDispCounts[disp] || 0) + 1;
-                        }
-                    } catch (e) {}
+                if (isDayCrew) {
+                    dayCrewCount++;
+                } else {
+                    volunteerCount++;
+                    const disp = c.emsDisposition || 'NOT RECORDED';
+                    volDispCounts[disp] = (volDispCounts[disp] || 0) + 1;
                 }
             });
 
