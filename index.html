@@ -46,6 +46,24 @@
         .unit-chip:active {
             transform: scale(0.95);
         }
+        /* Sortable Header Styles */
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        th.sortable:hover {
+            background-color: #374151; /* gray-700 */
+        }
+        .sort-icon {
+            margin-left: 0.5rem;
+            font-size: 0.75rem;
+            opacity: 0.5;
+        }
+        th.active-sort .sort-icon {
+            opacity: 1;
+            color: #ef4444; /* red-500 */
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col">
@@ -222,48 +240,144 @@
         <!-- HISTORY TAB -->
         <div id="tab-history" class="hidden fade-in space-y-6">
             
-            <!-- Import & Search Bar -->
-            <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 shadow-lg flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div class="flex items-center gap-2 w-full md:w-auto">
-                    <!-- Export Button -->
-                    <button onclick="exportToCSV()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg border border-blue-500 transition flex items-center gap-2 uppercase shadow-md">
-                        <i class="fa-solid fa-download"></i>
-                        <span>Export CSV</span>
-                    </button>
+            <!-- Toolbar: Import/Export, Search, Filters -->
+            <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 shadow-lg flex flex-col space-y-4">
+                
+                <!-- Top Row: Buttons & Search -->
+                <div class="flex flex-col md:flex-row gap-4 justify-between items-center">
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <!-- Export Button -->
+                        <button onclick="exportToCSV()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg border border-blue-500 transition flex items-center gap-2 uppercase shadow-md">
+                            <i class="fa-solid fa-download"></i>
+                            <span class="hidden sm:inline">Export CSV</span>
+                        </button>
 
-                    <!-- Import Button -->
-                    <label class="cursor-pointer bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium px-4 py-2 rounded-lg border border-gray-600 transition flex items-center gap-2 uppercase">
-                        <i class="fa-solid fa-file-csv"></i>
-                        <span>Import CSV</span>
-                        <input type="file" id="csvInput" accept=".csv" class="hidden" onchange="handleFileUpload(this)">
-                    </label>
-                    <span id="importStatus" class="text-xs text-gray-400 italic uppercase"></span>
+                        <!-- Import Button -->
+                        <label class="cursor-pointer bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium px-4 py-2 rounded-lg border border-gray-600 transition flex items-center gap-2 uppercase">
+                            <i class="fa-solid fa-file-csv"></i>
+                            <span class="hidden sm:inline">Import CSV</span>
+                            <input type="file" id="csvInput" accept=".csv" class="hidden" onchange="handleFileUpload(this)">
+                        </label>
+                        <span id="importStatus" class="text-xs text-gray-400 italic uppercase"></span>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <button onclick="toggleFilterPanel()" id="btn-toggle-filter" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm px-4 py-2 rounded-lg border border-gray-600 transition uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-filter"></i> Filters
+                        </button>
+                        <input type="text" id="searchInput" oninput="forceCaps(this)" placeholder="SEARCH ADDRESS, NOTES, ID..." onkeyup="renderTable()" class="bg-gray-900 border border-gray-600 text-white text-sm rounded-lg px-4 py-2 w-full md:w-64 focus:ring-1 focus:ring-red-500 outline-none uppercase">
+                    </div>
                 </div>
-                <div class="w-full md:w-auto">
-                     <input type="text" id="searchInput" oninput="forceCaps(this)" placeholder="SEARCH ADDRESS, NATURE, OR ID..." onkeyup="renderTable()" class="bg-gray-900 border border-gray-600 text-white text-sm rounded-lg px-4 py-2 w-full md:w-64 focus:ring-1 focus:ring-red-500 outline-none uppercase">
+
+                <!-- Advanced Filter Panel (Hidden by default) -->
+                <div id="filterPanel" class="hidden border-t border-gray-700 pt-4 animate-fade-in-down">
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        
+                        <!-- Date Range -->
+                        <div class="col-span-1 lg:col-span-2">
+                            <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Date Range</label>
+                            <div class="flex gap-2">
+                                <input type="date" id="filterDateStart" onchange="renderTable()" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white uppercase">
+                                <span class="text-gray-500 self-center">-</span>
+                                <input type="date" id="filterDateEnd" onchange="renderTable()" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white uppercase">
+                            </div>
+                        </div>
+
+                        <!-- Type -->
+                        <div>
+                            <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Response Type</label>
+                            <select id="filterType" onchange="renderTable()" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white uppercase">
+                                <option value="">ALL TYPES</option>
+                                <option value="EMS">EMS</option>
+                                <option value="FIRE">FIRE</option>
+                                <option value="BOTH">BOTH</option>
+                            </select>
+                        </div>
+
+                        <!-- Nature -->
+                        <div>
+                            <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Nature</label>
+                            <input type="text" id="filterNature" list="natures" oninput="forceCaps(this); renderTable()" placeholder="ANY" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white uppercase">
+                        </div>
+
+                        <!-- Disposition -->
+                        <div>
+                            <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Disposition</label>
+                            <select id="filterDisposition" onchange="renderTable()" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white uppercase">
+                                <option value="">ALL</option>
+                                <option value="TRANSPORT">TRANSPORT</option>
+                                <option value="REFUSAL">REFUSAL</option>
+                                <option value="NO PATIENT">NO PATIENT</option>
+                                <option value="NO CREW/MA">NO CREW/MA</option>
+                                <option value="OTHER EMS XPORT">OTHER EMS XPORT</option>
+                                <option value="76 COVERAGE">76 COVERAGE</option>
+                                <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                        </div>
+
+                        <!-- Mutual Aid -->
+                        <div>
+                            <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Mutual Aid</label>
+                            <select id="filterMutual" onchange="renderTable()" class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white uppercase">
+                                <option value="">ANY</option>
+                                <option value="YES">YES (ANY)</option>
+                                <option value="NO">NO</option>
+                                <option value="GIVEN">GIVEN</option>
+                                <option value="RECEIVED">RECEIVED</option>
+                            </select>
+                        </div>
+
+                        <!-- Units -->
+                        <div>
+                            <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Units</label>
+                            <input type="text" id="filterUnits" oninput="forceCaps(this); renderTable()" placeholder="CONTAINS..." class="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white uppercase">
+                        </div>
+
+                    </div>
+                    <div class="flex justify-end mt-4">
+                        <button onclick="resetFilters()" class="text-xs text-red-400 hover:text-red-300 uppercase font-bold">Reset Filters</button>
+                    </div>
                 </div>
             </div>
 
             <!-- Table -->
             <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden flex flex-col h-[650px]">
-                <div class="p-4 border-b border-gray-700 bg-gray-800">
+                <div class="p-4 border-b border-gray-700 bg-gray-800 flex justify-between items-center">
                     <h3 class="font-bold text-lg uppercase tracking-wide">Call Log</h3>
+                    <span id="recordCount" class="text-xs text-gray-500 uppercase font-mono">0 Records</span>
                 </div>
                 
                 <div class="overflow-auto flex-grow">
                     <table class="w-full text-left border-collapse">
-                        <thead class="bg-gray-900 text-gray-400 text-xs uppercase sticky top-0">
+                        <thead class="bg-gray-900 text-gray-400 text-xs uppercase sticky top-0 z-10">
                             <tr>
-                                <!-- REMOVED ACTION COLUMN HEADER -->
-                                <th id="th-incident" class="p-4 font-medium tracking-wider">Incident #</th>
-                                <th id="th-datetime" class="p-4 font-medium tracking-wider">Date/Time</th>
-                                <th id="th-nature" class="p-4 font-medium tracking-wider">Nature</th>
-                                <th id="th-address" class="p-4 font-medium tracking-wider">Address</th>
-                                <th id="th-type" class="p-4 font-medium tracking-wider">Type</th>
-                                <th id="th-units" class="p-4 font-medium tracking-wider">Units</th>
-                                <th id="th-mutual" class="p-4 font-medium tracking-wider">Mutual Aid</th>
-                                <th id="th-disposition" class="p-4 font-medium tracking-wider">Disposition</th>
-                                <th id="th-notes" class="p-4 font-medium tracking-wider">Notes</th>
+                                <th id="th-incident" onclick="handleSort('incident')" class="p-4 font-medium tracking-wider sortable">
+                                    Incident # <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th id="th-datetime" onclick="handleSort('datetime')" class="p-4 font-medium tracking-wider sortable">
+                                    Date/Time <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th id="th-nature" onclick="handleSort('nature')" class="p-4 font-medium tracking-wider sortable">
+                                    Nature <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th id="th-address" onclick="handleSort('address')" class="p-4 font-medium tracking-wider sortable">
+                                    Address <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th id="th-type" onclick="handleSort('type')" class="p-4 font-medium tracking-wider sortable">
+                                    Type <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th id="th-units" onclick="handleSort('units')" class="p-4 font-medium tracking-wider sortable">
+                                    Units <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th id="th-mutual" onclick="handleSort('mutual')" class="p-4 font-medium tracking-wider sortable">
+                                    Mutual Aid <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th id="th-disposition" onclick="handleSort('disposition')" class="p-4 font-medium tracking-wider sortable">
+                                    Disposition <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
+                                <th id="th-notes" onclick="handleSort('notes')" class="p-4 font-medium tracking-wider sortable">
+                                    Notes <i class="fa-solid fa-sort sort-icon"></i>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="historyTableBody" class="divide-y divide-gray-700 text-sm text-gray-300 uppercase cursor-pointer">
@@ -271,8 +385,8 @@
                         </tbody>
                     </table>
                     <div id="emptyState" class="hidden p-10 text-center text-gray-500">
-                        <i class="fa-solid fa-clipboard-list text-4xl mb-3 opacity-50"></i>
-                        <p class="uppercase">No calls found.</p>
+                        <i class="fa-solid fa-filter text-4xl mb-3 opacity-50"></i>
+                        <p class="uppercase">No calls found matching filters.</p>
                     </div>
                 </div>
             </div>
@@ -549,7 +663,6 @@
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, writeBatch, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Config ---
-        // Using user provided config
         const firebaseConfig = {
           apiKey: "AIzaSyCuo69DgYtxCdVRmRvziVfnS69koYMGJ0E",
           authDomain: "dashboard-1fb59.firebaseapp.com",
@@ -569,11 +682,14 @@
         let allCalls = [];
         let nextIncidentData = { id: '...', seq: 1, year: new Date().getFullYear() };
         let currentUser = null;
-        let currentStatsYear = new Date().getFullYear(); // State for selected year
-        // New: Store dynamic configuration
+        let currentStatsYear = new Date().getFullYear(); 
+        
+        // Sorting and Filtering State
+        let sortState = { col: 'datetime', asc: false }; // Default: Newest first
+        
         let currentConfig = {
-            schedules: {}, // Keyed by year string "2025", "2026"
-            statsConfig: { // Default visible
+            schedules: {},
+            statsConfig: {
                 showNatures: true,
                 showAddresses: true,
                 showMutual: true,
@@ -602,13 +718,69 @@
                 currentUser = user;
                 document.getElementById('connectionStatus').innerHTML = '<span class="text-green-500 font-bold uppercase">Online</span>';
                 setupRealtimeListener();
-                loadConfiguration(); // Load the dynamic options
-                // Init button state
+                loadConfiguration();
                 selectType('EMS');
             }
         });
 
         initApp();
+
+        // --- UI TOGGLES ---
+        window.toggleFilterPanel = function() {
+            const panel = document.getElementById('filterPanel');
+            const btn = document.getElementById('btn-toggle-filter');
+            
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                btn.classList.add('bg-gray-600', 'text-white');
+                btn.classList.remove('bg-gray-700', 'text-gray-300');
+            } else {
+                panel.classList.add('hidden');
+                btn.classList.add('bg-gray-700', 'text-gray-300');
+                btn.classList.remove('bg-gray-600', 'text-white');
+            }
+        }
+
+        window.resetFilters = function() {
+            document.getElementById('filterDateStart').value = '';
+            document.getElementById('filterDateEnd').value = '';
+            document.getElementById('filterType').value = '';
+            document.getElementById('filterNature').value = '';
+            document.getElementById('filterDisposition').value = '';
+            document.getElementById('filterMutual').value = '';
+            document.getElementById('filterUnits').value = '';
+            document.getElementById('searchInput').value = '';
+            renderTable();
+        }
+
+        // --- SORTING ---
+        window.handleSort = function(col) {
+            if (sortState.col === col) {
+                // Toggle direction
+                sortState.asc = !sortState.asc;
+            } else {
+                // New column, default to descending for dates/ids, ascending for others
+                sortState.col = col;
+                sortState.asc = (col === 'incident' || col === 'datetime') ? false : true;
+            }
+            renderTable();
+        }
+
+        function updateSortIcons() {
+            // Reset all icons
+            document.querySelectorAll('.sortable .sort-icon').forEach(icon => {
+                icon.className = 'fa-solid fa-sort sort-icon';
+                icon.parentElement.classList.remove('active-sort');
+            });
+
+            // Set active icon
+            const th = document.getElementById(`th-${sortState.col}`);
+            if (th) {
+                th.classList.add('active-sort');
+                const icon = th.querySelector('.sort-icon');
+                icon.className = sortState.asc ? 'fa-solid fa-sort-up sort-icon' : 'fa-solid fa-sort-down sort-icon';
+            }
+        }
 
         // --- FORCE UPPERCASE HELPER ---
         window.forceCaps = function(el) {
@@ -623,7 +795,6 @@
             const call = allCalls.find(c => c.id === id);
             if (!call) return;
 
-            // Populate Modal Fields
             document.getElementById('edit_docId').value = id;
             document.getElementById('edit_incidentNumber').value = call.incidentNumber || '';
             document.getElementById('edit_dispatchDate').value = call.dispatchDate;
@@ -634,10 +805,8 @@
             document.getElementById('edit_notes').value = call.notes || '';
             document.getElementById('edit_emsDisposition').value = call.emsDisposition || '';
             
-            // Set Response Type
             selectEditType(call.responseType || 'EMS');
 
-            // Handle Mutual Aid
             const maCheckbox = document.getElementById('edit_mutualAid');
             maCheckbox.checked = call.mutualAid || false;
             toggleEditMutualAid();
@@ -648,7 +817,6 @@
                 document.getElementById('edit_mutualAidDept').value = call.mutualAidDept || '';
             }
 
-            // Show Modal
             document.getElementById('editModal').classList.remove('hidden');
         }
 
@@ -660,7 +828,6 @@
             const id = document.getElementById('edit_docId').value;
             if(!id) return;
 
-            // Validate time in modal
             const timeInput = document.getElementById('edit_dispatchTime');
             validateTime(timeInput);
             if (timeInput.classList.contains('border-red-500')) {
@@ -677,16 +844,13 @@
                 
                 const newIncNum = document.getElementById('edit_incidentNumber').value.toUpperCase();
 
-                // Attempt to parse sequence for sorting from the new ID
                 let newSeq = null;
                 let newYear = null;
 
                 try {
-                    // Basic heuristics based on current format YYPLXXXX or YYHTXXXX
                     if (/^\d{2}/.test(newIncNum)) {
                         const yearShort = newIncNum.substring(0, 2);
                         newYear = 2000 + parseInt(yearShort);
-                        // Extract numeric part at end of string
                         const match = newIncNum.match(/(\d+)$/);
                         if (match) {
                              newSeq = parseInt(match[1]);
@@ -711,7 +875,6 @@
                     lastModifiedBy: currentUser.uid
                 };
 
-                // Only update sequence/year if successfully parsed, to maintain sorting
                 if (newSeq !== null) callData.sequence = newSeq;
                 if (newYear !== null) callData.year = newYear;
 
@@ -801,7 +964,6 @@
                 if (snap.exists()) {
                     const data = snap.data();
                     
-                    // 1. Populate Call Nature Datalist
                     const natureList = document.getElementById('natures');
                     natureList.innerHTML = '';
                     if (data.natures && Array.isArray(data.natures)) {
@@ -812,7 +974,6 @@
                         });
                     }
 
-                    // 2. Populate Mutual Aid Depts Datalist
                     const maList = document.getElementById('maDepts');
                     maList.innerHTML = '';
                     if (data.depts && Array.isArray(data.depts)) {
@@ -823,7 +984,6 @@
                         });
                     }
 
-                    // 3. Populate Unit Chips (Main Form & Edit Modal)
                     const populateChips = (containerId, items, clickHandler) => {
                         const container = document.getElementById(containerId);
                         if(!container) return;
@@ -842,45 +1002,22 @@
                         populateChips('edit_unitChips', data.units, addUnitToEditInput);
                     }
 
-                    // 4. Populate Dept Chips (Main Form & Edit Modal)
                     if (data.depts && Array.isArray(data.depts)) {
                         populateChips('deptChips', data.depts, addDeptToInput);
                         populateChips('edit_deptChips', data.depts, addDeptToEditInput);
                     }
 
-                    // 5. Apply Column Widths
-                    if (data.widths) {
-                        const setW = (id, val) => {
-                            if (val) {
-                                const el = document.getElementById(id);
-                                if (el) el.style.width = val;
-                            }
-                        };
-                        setW('th-incident', data.widths.incident);
-                        setW('th-datetime', data.widths.datetime);
-                        setW('th-nature', data.widths.nature);
-                        setW('th-address', data.widths.address);
-                        setW('th-type', data.widths.type);
-                        setW('th-units', data.widths.units);
-                        setW('th-mutual', data.widths.mutual);
-                        setW('th-notes', data.widths.notes);
-                    }
-
-                    // 6. Load Schedule (Year-based)
                     if (data.schedules) {
                         currentConfig.schedules = { ...currentConfig.schedules, ...data.schedules };
                     } 
-                    // Migration fallback for older single schedule
                     else if (data.schedule) {
                         currentConfig.schedules["2025"] = data.schedule;
                     }
 
-                    // 7. Load Stats Config
                     if (data.stats) {
                         currentConfig.statsConfig = { ...currentConfig.statsConfig, ...data.stats };
                     }
                     
-                    // Update stats immediately in case they are open
                     updateStats();
                 }
             } catch (e) {
@@ -891,27 +1028,15 @@
         window.addUnitToInput = function(unitName) {
             const input = document.getElementById('units');
             const currentVal = input.value.trim();
-            
-            if (currentVal.length === 0) {
-                input.value = unitName;
-            } else {
-                if (!currentVal.includes(unitName)) {
-                    input.value = currentVal + ", " + unitName;
-                }
-            }
+            if (currentVal.length === 0) input.value = unitName;
+            else if (!currentVal.includes(unitName)) input.value = currentVal + ", " + unitName;
         }
 
         window.addDeptToInput = function(deptName) {
             const input = document.getElementById('mutualAidDept');
             const currentVal = input.value.trim();
-            
-            if (currentVal.length === 0) {
-                input.value = deptName;
-            } else {
-                if (!currentVal.includes(deptName)) {
-                    input.value = currentVal + ", " + deptName;
-                }
-            }
+            if (currentVal.length === 0) input.value = deptName;
+            else if (!currentVal.includes(deptName)) input.value = currentVal + ", " + deptName;
         }
 
         window.handleMutualAidTypeChange = function() {
@@ -928,26 +1053,17 @@
             }
         }
 
-        // --- BUTTON SELECTION LOGIC ---
         window.selectType = function(type) {
-            // Update hidden input
             document.getElementById('responseType').value = type;
-            
-            // UI References
             const btnEms = document.getElementById('btn-ems');
             const btnFire = document.getElementById('btn-fire');
             const btnBoth = document.getElementById('btn-both');
             const dispSection = document.getElementById('emsDispositionSection');
-            
-            // Base class (inactive)
             const baseClass = "flex items-center justify-center py-2.5 rounded-lg font-bold border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700 transition uppercase";
-            
-            // Reset all
             btnEms.className = baseClass;
             btnFire.className = baseClass;
             btnBoth.className = baseClass;
             
-            // Set active
             if(type === 'EMS') {
                 btnEms.className = "flex items-center justify-center py-2.5 rounded-lg font-bold border border-blue-500 bg-blue-600 text-white shadow-lg shadow-blue-900/50 transform scale-[1.02] transition uppercase";
                 dispSection.classList.remove('hidden');
@@ -960,20 +1076,17 @@
             }
         }
 
-        // --- Time Format Helpers ---
         window.autoFormatTime = function(el) {
-            let v = el.value.replace(/\D/g, ''); // Remove non-digits
+            let v = el.value.replace(/\D/g, ''); 
             if (v.length >= 3) {
                 v = v.slice(0, 2) + ':' + v.slice(2);
             }
-            // limit length
             if (v.length > 5) v = v.slice(0, 5);
             el.value = v;
         }
 
         window.validateTime = function(el) {
             const regex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-            
             if (el.value && !regex.test(el.value)) {
                 showToast("INVALID TIME FORMAT. USE 24H HH:MM", true);
                 el.classList.add('border-red-500', 'ring-2', 'ring-red-500');
@@ -981,8 +1094,6 @@
             } else {
                 el.classList.remove('border-red-500', 'ring-2', 'ring-red-500');
                 el.classList.add('border-gray-600');
-                
-                // Auto-pad single digit hours if user types "9:00" -> "09:00"
                 if(el.value.length === 4 && el.value.indexOf(':') === 1) {
                      el.value = '0' + el.value;
                 }
@@ -995,23 +1106,8 @@
                 showToast("NO DATA TO EXPORT", true);
                 return;
             }
-
-            // Define Headers exactly matching the Call Log Table
-            const headers = [
-                'Incident #', 
-                'Date/Time', 
-                'Nature', 
-                'Address', 
-                'Type', 
-                'Units', 
-                'Mutual Aid', 
-                'Disposition', 
-                'Notes'
-            ];
-            
-            // Format Data
+            const headers = ['Incident #', 'Date/Time', 'Nature', 'Address', 'Type', 'Units', 'Mutual Aid', 'Disposition', 'Notes'];
             const rows = allCalls.map(c => {
-                // Format Reported Date/Time (MM/DD/YYYY HH:MM)
                 let reported = '';
                 if (c.dispatchDate && c.dispatchTime) {
                     try {
@@ -1019,16 +1115,12 @@
                         reported = `${m}/${d}/${y} ${c.dispatchTime}`;
                     } catch(e) {}
                 }
-
-                // Handle Mutual Aid (Combined String like table)
                 let mutualAidStr = '';
                 if (c.mutualAid) {
                     const type = c.mutualAidType ? c.mutualAidType.toUpperCase() : 'UNKNOWN';
                     const dept = c.mutualAidDept ? c.mutualAidDept : '';
                     mutualAidStr = `${type} - ${dept}`;
                 }
-
-                // Handle Commas/Quotes in text fields
                 const escapeCsv = (txt) => {
                     if (!txt) return '';
                     const str = String(txt);
@@ -1037,7 +1129,6 @@
                     }
                     return str;
                 };
-
                 return [
                     c.incidentNumber,
                     reported,
@@ -1050,11 +1141,7 @@
                     escapeCsv(c.notes)
                 ].join(',');
             });
-
-            // Combine
             const csvContent = [headers.join(','), ...rows].join('\n');
-            
-            // Download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
@@ -1079,6 +1166,22 @@
                 const text = e.target.result;
                 try {
                     statusEl.textContent = "PARSING CSV...";
+                    
+                    // Simple CSV Parse Logic
+                    const parseCSV = (str) => {
+                        const arr = [];
+                        let quote = false;
+                        let row = [];
+                        let col = '';
+                        for (let c of str) {
+                            if (c === '"') { quote = !quote; continue; }
+                            if (c === ',' && !quote) { row.push(col); col = ''; continue; }
+                            if (c === '\n' && !quote) { row.push(col); col = ''; arr.push(row); row = []; continue; }
+                            col += c;
+                        }
+                        if (row.length > 0) arr.push(row);
+                        return arr;
+                    }
                     const rows = parseCSV(text);
                     
                     if (rows.length < 2) {
@@ -1087,32 +1190,19 @@
                         return;
                     }
 
-                    // Pre-fetch loaded incident numbers for duplicate checking
-                    // Create a Map for O(1) lookup: incidentNumber -> docId
                     const existingIncidents = new Map();
                     allCalls.forEach(call => {
                         if (call.incidentNumber) existingIncidents.set(call.incidentNumber, call.id);
                     });
 
-                    const ops = []; // List of operations: { type: 'update'|'create', id?: string, data: object }
+                    const ops = []; 
                     let parseErrors = 0;
 
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
-                        if (row.length < 2) continue; // Basic check
+                        if (row.length < 2) continue; 
 
                         try {
-                            // Column Indices based on Export Format (and Table Headers)
-                            // 0: Incident #
-                            // 1: Date/Time
-                            // 2: Nature
-                            // 3: Address
-                            // 4: Type
-                            // 5: Units
-                            // 6: Mutual Aid
-                            // 7: Disposition
-                            // 8: Notes
-
                             const incNum = row[0]?.trim().toUpperCase();
                             if (!incNum) continue;
 
@@ -1121,11 +1211,10 @@
                             const address = row[3]?.trim().toUpperCase();
                             const typeRaw = row[4]?.trim().toUpperCase(); 
                             const units = row[5]?.trim().toUpperCase();
-                            const mutualAidCombined = row[6]?.trim(); // "Type - Dept"
+                            const mutualAidCombined = row[6]?.trim(); 
                             const disposition = row[7]?.trim().toUpperCase();
                             const notes = row[8]?.trim().toUpperCase();
 
-                            // 1. Parse Date/Time
                             let formattedDate = '';
                             let formattedTime = '';
                             if (reported && reported.includes(' ')) {
@@ -1138,19 +1227,15 @@
                                 }
                             }
 
-                            // 2. Parse ID for sequencing (Support HT/PL)
                             const yearShort = incNum.substring(0, 2); 
                             const yearFull = 2000 + parseInt(yearShort);
-                            // Strip known prefixes to find sequence
                             const seqStr = incNum.replace(yearShort + 'HT', '').replace(yearShort + 'PL', '');
                             const seqNum = parseInt(seqStr);
 
-                            // 3. Normalize Type
                             let finalType = 'Both';
                             if (typeRaw === 'FIRE') finalType = 'Fire';
                             if (typeRaw === 'EMS') finalType = 'EMS';
 
-                            // 4. Mutual Aid Logic (Parse "Given - Dept")
                             let isMa = false;
                             let maType = null;
                             let maDept = null;
@@ -1162,11 +1247,8 @@
                                 } else if (mutualAidCombined.toUpperCase().includes('RECEIVED')) {
                                     maType = 'Received';
                                 } else {
-                                    // Fallback if parsing fails but content exists
                                     maType = 'Given'; 
                                 }
-
-                                // Try to extract Dept (everything after " - ")
                                 if (mutualAidCombined.includes(' - ')) {
                                     maDept = mutualAidCombined.split(' - ')[1]?.trim().toUpperCase() || '';
                                 } else {
@@ -1192,7 +1274,6 @@
                                 imported: true
                             };
 
-                            // Check if exists
                             if (existingIncidents.has(incNum)) {
                                 ops.push({
                                     type: 'update',
@@ -1215,7 +1296,6 @@
                             }
 
                         } catch (err) {
-                            console.warn("Skipping row", i, err);
                             parseErrors++;
                         }
                     }
@@ -1228,6 +1308,25 @@
 
                     const updates = ops.filter(o => o.type === 'update').length;
                     const creates = ops.filter(o => o.type === 'create').length;
+
+                    // Batch helper
+                    const batchUpload = async (operations) => {
+                        const batchSize = 500;
+                        for (let i = 0; i < operations.length; i += batchSize) {
+                            const chunk = operations.slice(i, i + batchSize);
+                            const batch = writeBatch(db);
+                            chunk.forEach(op => {
+                                if (op.type === 'create') {
+                                    const ref = doc(collection(db, 'artifacts', appId, 'public', 'data', 'calls'));
+                                    batch.set(ref, op.data);
+                                } else {
+                                    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'calls', op.id);
+                                    batch.update(ref, op.data);
+                                }
+                            });
+                            await batch.commit();
+                        }
+                    }
 
                     if (confirm(`IMPORT SUMMARY:\n- NEW RECORDS: ${creates}\n- UPDATING RECORDS: ${updates}\n\nPROCEED?`)) {
                         statusEl.textContent = `PROCESSING...`;
@@ -1258,7 +1357,8 @@
                 snapshot.forEach((doc) => {
                     calls.push({ id: doc.id, ...doc.data() });
                 });
-
+                
+                // Initial sort by ID to establish a baseline before UI sorting
                 calls.sort((a, b) => {
                     if (b.year !== a.year) return b.year - a.year;
                     return b.sequence - a.sequence;
@@ -1266,23 +1366,20 @@
 
                 allCalls = calls;
                 calculateNextIncidentId();
-                populateYearSelect(); // Populate years based on data
+                populateYearSelect(); 
                 updateStats();
-                updateAddressHistory(); // NEW: Update address suggestions data
-                renderTable();
+                updateAddressHistory();
+                renderTable(); // This handles sorting and filtering
             }, (error) => {
                 console.error("Firestore Error:", error);
                 showToast("ERROR LOADING DATA", true);
             });
         }
         
-        // --- ADDRESS HISTORY SUGGESTION LOGIC ---
-        let sortedAddressList = []; // New global var to hold sorted addresses
+        let sortedAddressList = []; 
 
         function updateAddressHistory() {
             const addressCounts = {};
-            
-            // Count frequency of all addresses in history
             allCalls.forEach(call => {
                 if (call.address) {
                     const addr = call.address.trim().toUpperCase();
@@ -1291,45 +1388,34 @@
                     }
                 }
             });
-
-            // Sort by frequency (highest count first)
             sortedAddressList = Object.entries(addressCounts)
-                .sort((a, b) => b[1] - a[1]) // Descending sort by count
+                .sort((a, b) => b[1] - a[1]) 
                 .map(entry => entry[0]);
         }
 
-        // Add Event Listeners for Address Input
         const addrInput = document.getElementById('address');
         const suggestionBox = document.getElementById('addressSuggestions');
 
         if(addrInput && suggestionBox) {
             addrInput.addEventListener('input', function() {
                 const val = this.value.toUpperCase();
-                
-                // Hide if empty or short
                 if (val.length < 2) {
                     suggestionBox.classList.add('hidden');
                     return;
                 }
-                
-                // Filter matches
                 const matches = sortedAddressList.filter(a => a.includes(val)).slice(0, 5);
                 
                 if (matches.length === 0) {
                     suggestionBox.classList.add('hidden');
                     return;
                 }
-                
-                // Render Matches
                 suggestionBox.innerHTML = '';
                 matches.forEach(addr => {
                     const div = document.createElement('div');
                     div.className = "px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-300 border-b border-gray-700 last:border-0 uppercase font-medium";
-                    // Highlight match
                     const regex = new RegExp(`(${val})`, 'gi');
                     const highlighted = addr.replace(regex, '<span class="text-blue-400 font-bold">$1</span>');
                     div.innerHTML = highlighted;
-                    
                     div.onclick = () => {
                         addrInput.value = addr;
                         suggestionBox.classList.add('hidden');
@@ -1338,8 +1424,6 @@
                 });
                 suggestionBox.classList.remove('hidden');
             });
-
-            // Hide when clicking outside
             document.addEventListener('click', function(e) {
                 if (e.target !== addrInput && !suggestionBox.contains(e.target)) {
                     suggestionBox.classList.add('hidden');
@@ -1347,18 +1431,12 @@
             });
         }
 
-        // --- Logic: Year Selection & Population ---
         window.populateYearSelect = function() {
             const select = document.getElementById('statsYearSelect');
             const years = new Set(allCalls.map(c => c.year));
             const currentYear = new Date().getFullYear();
-            
-            // Ensure current year is always available
             years.add(currentYear);
-            
             const sortedYears = Array.from(years).sort((a, b) => b - a);
-            
-            // Save current selection if possible, else default to latest
             const existingSelection = select.value ? parseInt(select.value) : currentStatsYear;
             
             select.innerHTML = '';
@@ -1370,15 +1448,12 @@
                 select.appendChild(opt);
             });
             
-            // If the previously selected year isn't in data anymore (unlikely but possible), revert to current
             if (!years.has(existingSelection)) {
                 select.value = sortedYears[0];
                 currentStatsYear = sortedYears[0];
             } else {
                 currentStatsYear = existingSelection;
             }
-            
-            // Update title initially
             document.getElementById('statsTitle').textContent = `${currentStatsYear} Statistics`;
         }
 
@@ -1388,23 +1463,18 @@
             updateStats();
         }
 
-        // --- Logic: Incident ID ---
         function calculateNextIncidentId() {
             const now = new Date();
             const currentYear = now.getFullYear();
             const yearShort = currentYear.toString().slice(-2);
-            
             const thisYearCalls = allCalls.filter(c => c.year === currentYear);
             
             let maxSeq = 0;
             if (thisYearCalls.length > 0) {
                 maxSeq = Math.max(...thisYearCalls.map(c => c.sequence || 0));
             }
-            
             const nextSeq = maxSeq + 1;
-            // UPDATED: Changed padding from 5 to 4 based on "25PL0000" requirement
-            const seqPadded = String(nextSeq).padStart(5, '0');
-            // UPDATED: Changed prefix from "HT" to "PL"
+            const seqPadded = String(nextSeq).padStart(4, '0');
             const nextId = `${yearShort}PL${seqPadded}`;
 
             nextIncidentData = {
@@ -1412,7 +1482,6 @@
                 seq: nextSeq,
                 year: currentYear
             };
-
             document.getElementById('previewIncidentId').textContent = nextId;
         }
 
@@ -1425,7 +1494,6 @@
             const h = String(now.getHours()).padStart(2, '0');
             const m = String(now.getMinutes()).padStart(2, '0');
             const timeStr = `${h}:${m}`;
-            
             document.getElementById('dispatchDate').value = dateStr;
             document.getElementById('dispatchTime').value = timeStr;
         }
@@ -1439,14 +1507,11 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> SAVING...';
 
             try {
-                // Validate time again
                 const timeInput = document.getElementById('dispatchTime');
                 validateTime(timeInput);
                 if (timeInput.classList.contains('border-red-500')) {
                     throw new Error("Invalid Time");
                 }
-
-                // Recalculate ID immediately before saving
                 calculateNextIncidentId();
 
                 const isMutualAid = document.getElementById('mutualAid').checked;
@@ -1475,7 +1540,6 @@
                 };
 
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'calls'), newCall);
-                
                 showToast(`CALL ${newCall.incidentNumber} SAVED!`);
                 form.reset();
                 setNowDefaults();
@@ -1493,18 +1557,98 @@
             }
         });
 
-        // --- Render Functions ---
+        // --- Render Functions (UPDATED FOR SORTING & FILTERING) ---
         window.renderTable = function() {
-            const tbody = document.getElementById('historyTableBody');
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            
-            tbody.innerHTML = '';
+            // Update UI for Sort
+            updateSortIcons();
 
-            const filtered = allCalls.filter(call => {
-                const text = `${call.incidentNumber} ${call.address} ${call.callNature} ${call.notes || ''}`.toLowerCase();
-                return text.includes(search);
+            const tbody = document.getElementById('historyTableBody');
+            
+            // 1. Get Filters
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filterStart = document.getElementById('filterDateStart').value;
+            const filterEnd = document.getElementById('filterDateEnd').value;
+            const filterType = document.getElementById('filterType').value;
+            const filterNature = document.getElementById('filterNature').value.toUpperCase();
+            const filterDisp = document.getElementById('filterDisposition').value;
+            const filterMutual = document.getElementById('filterMutual').value;
+            const filterUnits = document.getElementById('filterUnits').value.toUpperCase();
+
+            // 2. Filter Data
+            let filtered = allCalls.filter(call => {
+                // Text Search (Notes, Address, ID)
+                const text = `${call.incidentNumber} ${call.address} ${call.notes || ''}`.toLowerCase();
+                if (search && !text.includes(search)) return false;
+
+                // Date Range
+                if (filterStart && call.dispatchDate < filterStart) return false;
+                if (filterEnd && call.dispatchDate > filterEnd) return false;
+
+                // Type
+                if (filterType && filterType !== 'BOTH' && call.responseType !== filterType && call.responseType !== 'Both') return false;
+                if (filterType === 'BOTH' && call.responseType !== 'Both') return false; // Strict check for BOTH if selected
+
+                // Nature
+                if (filterNature && (!call.callNature || !call.callNature.includes(filterNature))) return false;
+
+                // Disposition
+                if (filterDisp && call.emsDisposition !== filterDisp) return false;
+
+                // Units
+                if (filterUnits && (!call.units || !call.units.includes(filterUnits))) return false;
+
+                // Mutual Aid
+                if (filterMutual) {
+                    if (filterMutual === 'NO' && call.mutualAid) return false;
+                    if (filterMutual === 'YES' && !call.mutualAid) return false;
+                    if (filterMutual === 'GIVEN' && (!call.mutualAid || call.mutualAidType !== 'Given')) return false;
+                    if (filterMutual === 'RECEIVED' && (!call.mutualAid || call.mutualAidType !== 'Received')) return false;
+                }
+
+                return true;
             });
 
+            // 3. Update Count
+            document.getElementById('recordCount').textContent = `${filtered.length} Records`;
+
+            // 4. Sort Data
+            filtered.sort((a, b) => {
+                let valA = a[sortState.col];
+                let valB = b[sortState.col];
+                
+                // Special handlers
+                if (sortState.col === 'incident') {
+                     // Sort by year then sequence
+                     if (a.year !== b.year) return a.year - b.year;
+                     return (a.sequence || 0) - (b.sequence || 0);
+                }
+                if (sortState.col === 'datetime') {
+                    const timeA = `${a.dispatchDate} ${a.dispatchTime}`;
+                    const timeB = `${b.dispatchDate} ${b.dispatchTime}`;
+                    return timeA.localeCompare(timeB);
+                }
+                if (sortState.col === 'mutual') {
+                    // Sort by type then dept
+                    const strA = a.mutualAid ? `${a.mutualAidType} ${a.mutualAidDept}` : '';
+                    const strB = b.mutualAid ? `${b.mutualAidType} ${b.mutualAidDept}` : '';
+                    return strA.localeCompare(strB);
+                }
+
+                // Default String Compare
+                if (valA === undefined || valA === null) valA = '';
+                if (valB === undefined || valB === null) valB = '';
+                
+                if (typeof valA === 'string') return valA.localeCompare(valB);
+                return valA - valB;
+            });
+
+            // Reverse if Descending
+            if (!sortState.asc) {
+                filtered.reverse();
+            }
+
+            // 5. Render
+            tbody.innerHTML = '';
             if (filtered.length === 0) {
                 document.getElementById('emptyState').classList.remove('hidden');
                 return;
@@ -1515,7 +1659,7 @@
             filtered.forEach(call => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-750 transition uppercase cursor-pointer";
-                tr.onclick = () => openEditModal(call.id); // Row Click Trigger
+                tr.onclick = () => openEditModal(call.id); 
                 
                 let typeBadge = '';
                 if(call.responseType === 'Fire') typeBadge = '<span class="bg-red-900 text-red-200 text-xs px-2 py-1 rounded">FIRE</span>';
@@ -1538,11 +1682,9 @@
                     </div>`;
                 }
                 
-                // Truncate long notes
                 let notesDisplay = call.notes || '';
                 if(notesDisplay.length > 50) notesDisplay = notesDisplay.substring(0,50) + '...';
 
-                // Disposition display
                 let dispDisplay = call.emsDisposition || '<span class="text-gray-600">-</span>';
 
                 tr.innerHTML = `
@@ -1564,10 +1706,7 @@
         }
 
         function updateStats() {
-            // Filter by the currently selected year state
             const thisYearCalls = allCalls.filter(c => c.year === currentStatsYear);
-            
-            // 1. Basic Counts
             document.getElementById('stat-total').textContent = thisYearCalls.length;
             
             const fireCount = thisYearCalls.filter(c => c.responseType === 'Fire' || c.responseType === 'Both').length;
@@ -1576,25 +1715,15 @@
             document.getElementById('stat-fire').textContent = fireCount;
             document.getElementById('stat-ems').textContent = emsCount;
 
-            // Get Config values
-            const config = currentConfig.statsConfig || {
-                showNatures: true,
-                showAddresses: true,
-                showMutual: true,
-                showCrew: true,
-                showVolDispo: true,
-                limit: 5
-            };
+            const config = currentConfig.statsConfig || { showNatures: true, showAddresses: true, showMutual: true, showCrew: true, showVolDispo: true, limit: 5 };
             const limit = config.limit || 5;
 
-            // Load Schedule for Time-Based Calcs (Moved UP for Mutual Aid use)
             let sched = { wdStart: 6, wdEnd: 18, weStart: 8, weEnd: 18 };
             if (currentConfig.schedules && currentConfig.schedules[String(currentStatsYear)]) {
                 sched = currentConfig.schedules[String(currentStatsYear)];
             }
             const { wdStart, wdEnd, weStart, weEnd } = sched;
 
-            // Helper for Day Crew Check
             const checkDayCrew = (c) => {
                 if (!c.dispatchDate || !c.dispatchTime) return false;
                 try {
@@ -1604,46 +1733,35 @@
                     const day = dateObj.getDay(); 
                     const hour = h;
 
-                    // M-F (1-5)
                     if (day >= 1 && day <= 5) {
                         return (hour >= wdStart && hour < wdEnd);
-                    } 
-                    // S-S (0, 6)
-                    else {
+                    } else {
                         return (hour >= weStart && hour < weEnd);
                     }
                 } catch(e) { return false; }
             };
 
-
-            // 2. Top Natures
             const wNatures = document.getElementById('widget-natures');
             if (!config.showNatures) {
                 wNatures.classList.add('hidden');
             } else {
                 wNatures.classList.remove('hidden');
-                
                 const natureCounts = {};
                 thisYearCalls.forEach(c => {
                     const n = c.callNature || 'UNKNOWN';
                     natureCounts[n] = (natureCounts[n] || 0) + 1;
                 });
-                
                 const sortedNatures = Object.entries(natureCounts)
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, limit); 
-
                 const natureListEl = document.getElementById('stats-natures');
                 natureListEl.innerHTML = '';
-                
                 if (sortedNatures.length === 0) {
                     natureListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
                 } else {
                     const maxCount = sortedNatures[0][1];
-                    
                     sortedNatures.forEach(([name, count]) => {
                         const barWidth = (count / maxCount) * 100; 
-                        
                         const row = document.createElement('div');
                         row.innerHTML = `
                             <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
@@ -1659,34 +1777,22 @@
                 }
             }
 
-            // 3. Top Addresses (NEW LOGIC)
             const wAddresses = document.getElementById('widget-addresses');
             if (!config.showAddresses) {
                 wAddresses.classList.add('hidden');
             } else {
                 wAddresses.classList.remove('hidden');
-
                 const addressCounts = {};
                 thisYearCalls.forEach(c => {
                     let addr = c.address ? c.address.trim().toUpperCase() : 'UNKNOWN';
-                    
-                    // Special handling for I 70 normalization
-                    if (addr.includes('I 70')) {
-                        addr = 'I 70'; 
-                    }
-                    
-                    if (addr !== 'UNKNOWN' && addr !== '') {
-                        addressCounts[addr] = (addressCounts[addr] || 0) + 1;
-                    }
+                    if (addr.includes('I 70')) addr = 'I 70'; 
+                    if (addr !== 'UNKNOWN' && addr !== '') addressCounts[addr] = (addressCounts[addr] || 0) + 1;
                 });
-
                 const sortedAddresses = Object.entries(addressCounts)
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, limit); 
-
                 const addrListEl = document.getElementById('stats-addresses');
                 addrListEl.innerHTML = '';
-
                 if (sortedAddresses.length === 0) {
                     addrListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
                 } else {
@@ -1708,29 +1814,21 @@
                 }
             }
 
-
-            // 4. Mutual Aid Breakdown
             const wMutual = document.getElementById('widget-mutual');
             if (!config.showMutual) {
                 wMutual.classList.add('hidden');
             } else {
                 wMutual.classList.remove('hidden');
-
                 let givenCount = 0;
                 let receivedCount = 0;
-                // Breakdown vars
                 let givenDay = 0, givenVol = 0;
                 let receivedDay = 0, receivedVol = 0;
-
                 const maDepts = {};
 
                 thisYearCalls.forEach(c => {
-                    // EXCLUDE FIRE CALLS per user request
                     if (c.responseType === 'Fire') return;
-
                     if (c.mutualAid) {
                         const isDay = checkDayCrew(c);
-
                         if (c.mutualAidType === 'Given') {
                             givenCount++;
                             if (isDay) givenDay++; else givenVol++;
@@ -1739,7 +1837,6 @@
                             receivedCount++;
                             if (isDay) receivedDay++; else receivedVol++;
                         }
-                        
                         if (c.mutualAidDept) {
                             const depts = c.mutualAidDept.split(',').map(s => s.trim());
                             depts.forEach(d => {
@@ -1751,7 +1848,6 @@
 
                 document.getElementById('stat-ma-given').textContent = givenCount;
                 document.getElementById('stat-ma-received').textContent = receivedCount;
-                // Breakdown UI
                 document.getElementById('stat-ma-given-day').textContent = givenDay;
                 document.getElementById('stat-ma-given-vol').textContent = givenVol;
                 document.getElementById('stat-ma-received-day').textContent = receivedDay;
@@ -1771,37 +1867,28 @@
                 });
             }
 
-            // 5. Crew Analysis
             const wCrew = document.getElementById('widget-crew');
-            // 6. Volunteer Disposition Stats
             const wVolDispo = document.getElementById('widget-voldispo');
 
-            // Logic shared for crew & vol stats
             let dayCrewCount = 0;
             let volunteerCount = 0;
             const volDispCounts = {};
 
-            // Update UI Text
             document.getElementById('stats-sched-text-wd').textContent = `M-F: ${String(wdStart).padStart(2,'0')}:00 - ${String(wdEnd).padStart(2,'0')}:00 (Day Crew)`;
             document.getElementById('stats-sched-text-we').textContent = `S-S: ${String(weStart).padStart(2,'0')}:00 - ${String(weEnd).padStart(2,'0')}:00 (Day Crew)`;
 
             thisYearCalls.forEach(c => {
-                // Exclude Fire calls from crew & vol stats
                 if (c.responseType === 'Fire') return;
-
                 const isDayCrew = checkDayCrew(c);
-
                 if (isDayCrew) {
                     dayCrewCount++;
                 } else {
                     volunteerCount++;
-                    // Track disposition for volunteer calls only
                     const disp = c.emsDisposition || 'NOT RECORDED';
                     volDispCounts[disp] = (volDispCounts[disp] || 0) + 1;
                 }
             });
 
-            // Apply Visibility for Crew Widget
             if (!config.showCrew) {
                 wCrew.classList.add('hidden');
             } else {
@@ -1810,17 +1897,14 @@
                 document.getElementById('stat-crew-vol').textContent = volunteerCount;
             }
 
-            // Apply Visibility for Vol Dispo Widget
             if (!config.showVolDispo) {
                 wVolDispo.classList.add('hidden');
             } else {
                 wVolDispo.classList.remove('hidden');
-                // Render Volunteer Disposition Stats
                 const volDispListEl = document.getElementById('stats-vol-dispo');
                 volDispListEl.innerHTML = '';
-                
                 const sortedVolDisps = Object.entries(volDispCounts)
-                    .sort((a, b) => b[1] - a[1]); // Always show all dispositions, no limit applied here as requested usually
+                    .sort((a, b) => b[1] - a[1]); 
 
                 if (sortedVolDisps.length === 0) {
                     volDispListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
@@ -1844,16 +1928,13 @@
             }
         }
 
-        // --- UI Utils ---
         window.showToast = function(msg, isError = false) {
             const toast = document.getElementById('toast');
             const msgEl = document.getElementById('toastMessage');
             
             toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300 z-50 flex items-center gap-3 ${isError ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`;
             msgEl.textContent = msg;
-            
             toast.classList.remove('translate-y-20', 'opacity-0');
-            
             setTimeout(() => {
                 toast.classList.add('translate-y-20', 'opacity-0');
             }, 3000);
@@ -1867,7 +1948,6 @@
             if (chk.checked) {
                 fields.classList.remove('hidden');
                 inputs.forEach(i => i.required = true);
-                
                 handleMutualAidTypeChange(); 
             } else {
                 fields.classList.add('hidden');
@@ -1884,18 +1964,16 @@
             const btnHistory = document.getElementById('btn-history');
             const btnStats = document.getElementById('btn-stats');
 
-            // Reset all content
-            entryTab.classList.add('hidden');
-            historyTab.classList.add('hidden');
-            statsTab.classList.add('hidden');
-
-            // Reset all buttons
             const inactiveClass = "px-4 py-2 rounded-lg bg-gray-700 text-gray-300 font-medium hover:bg-gray-600 transition border border-gray-600 uppercase text-sm tracking-wider";
             const activeClass = "px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition shadow-md border border-red-500 uppercase text-sm tracking-wider";
             
             btnEntry.className = inactiveClass;
             btnHistory.className = inactiveClass;
             btnStats.className = inactiveClass;
+
+            entryTab.classList.add('hidden');
+            historyTab.classList.add('hidden');
+            statsTab.classList.add('hidden');
 
             if (tabName === 'entry') {
                 entryTab.classList.remove('hidden');
