@@ -64,6 +64,10 @@
             opacity: 1;
             color: #ef4444; /* red-500 */
         }
+        /* Tooltip for chart */
+        .chart-bar:hover .chart-tooltip {
+            display: block;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col">
@@ -428,6 +432,14 @@
             <!-- Detailed Stats Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
+                <!-- NEW: Monthly Breakdown (Number Grid) -->
+                <div id="widget-monthly" class="col-span-1 lg:col-span-2 bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
+                    <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">Runs Per Month</h3>
+                    <div id="stats-monthly" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                        <!-- Items injected by JS -->
+                    </div>
+                </div>
+
                 <!-- Top Natures -->
                 <div id="widget-natures" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
                     <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">Top Call Natures</h3>
@@ -569,7 +581,7 @@
                             <div class="grid grid-cols-3 gap-3">
                                 <button type="button" onclick="selectEditType('EMS')" id="edit_btn-ems" class="flex items-center justify-center py-2.5 rounded-lg font-bold border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700 transition uppercase text-xs">EMS</button>
                                 <button type="button" onclick="selectEditType('Fire')" id="edit_btn-fire" class="flex items-center justify-center py-2.5 rounded-lg font-bold border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700 transition uppercase text-xs">Fire</button>
-                                <button type="button" onclick="selectEditType('Both')" id="edit_btn-both" class="flex items-center justify-center py-2.5 rounded-lg font-bold border border-gray-600 bg-gray-800 text-gray-400 hover:bg-gray-700 transition uppercase text-xs">Both</button>
+                                <button type="button" onclick="selectEditType('Both')" id="edit_btn-both" class="flex items-center justify-center py-2.5 rounded-lg font-bold border border-purple-500 bg-purple-600 text-white shadow-lg shadow-purple-900/50 transform scale-[1.02] transition uppercase text-xs">Both</button>
                             </div>
                             <input type="hidden" id="edit_responseType">
                         </div>
@@ -1705,10 +1717,42 @@
             });
         }
 
+        // Helper to check shift type
+        function getShiftType(dateStr, timeStr) {
+            if (!dateStr || !timeStr) return 'Unknown';
+            try {
+                const [y, m, d] = dateStr.split('-').map(Number);
+                const [h, min] = timeStr.split(':').map(Number);
+                const dateObj = new Date(y, m - 1, d, h, min);
+                const day = dateObj.getDay(); 
+                const hour = h;
+
+                // Day Crew logic
+                if (day >= 1 && day <= 5) { // Mon-Fri
+                    if (hour >= 6 && hour < 18) return 'Day';
+                } 
+                else { // Sat-Sun
+                    if (hour >= 8 && hour < 18) return 'Day';
+                }
+                return 'Volunteer';
+            } catch(e) { return 'Unknown'; }
+        }
+
+        // Renamed/wrapped the crew check to use new helper or inline logic
+        // But for consistency with existing calls, let's keep a small wrapper if needed.
+        // Actually, updateStats logic below uses getShiftType directly now.
+        const checkDayCrew = (c) => {
+             return getShiftType(c.dispatchDate, c.dispatchTime) === 'Day';
+        }
+
         function updateStats() {
             const thisYearCalls = allCalls.filter(c => c.year === currentStatsYear);
+            
             document.getElementById('stat-total').textContent = thisYearCalls.length;
             
+            // Recalculate global counts strictly (Fire only, EMS only, Both) or inclusive?
+            // User query implied specific breakdown for monthly, but top cards usually stay inclusive.
+            // Keeping top cards as they were (inclusive) for now unless requested otherwise.
             const fireCount = thisYearCalls.filter(c => c.responseType === 'Fire' || c.responseType === 'Both').length;
             const emsCount = thisYearCalls.filter(c => c.responseType === 'EMS' || c.responseType === 'Both').length;
             
@@ -1718,63 +1762,97 @@
             const config = currentConfig.statsConfig || { showNatures: true, showAddresses: true, showMutual: true, showCrew: true, showVolDispo: true, limit: 5 };
             const limit = config.limit || 5;
 
-            let sched = { wdStart: 6, wdEnd: 18, weStart: 8, weEnd: 18 };
-            if (currentConfig.schedules && currentConfig.schedules[String(currentStatsYear)]) {
-                sched = currentConfig.schedules[String(currentStatsYear)];
-            }
-            const { wdStart, wdEnd, weStart, weEnd } = sched;
+            // --- 1. Monthly Breakdown Logic ---
+            // Initialize array of objects: Total, Fire (only), EMS (only), Both
+            const monthData = Array.from({ length: 12 }, () => ({ total: 0, fire: 0, ems: 0, both: 0 }));
 
-            const checkDayCrew = (c) => {
-                if (!c.dispatchDate || !c.dispatchTime) return false;
-                try {
-                    const [y, m, d] = c.dispatchDate.split('-').map(Number);
-                    const [h, min] = c.dispatchTime.split(':').map(Number);
-                    const dateObj = new Date(y, m - 1, d, h, min);
-                    const day = dateObj.getDay(); 
-                    const hour = h;
-
-                    if (day >= 1 && day <= 5) {
-                        return (hour >= wdStart && hour < wdEnd);
-                    } else {
-                        return (hour >= weStart && hour < weEnd);
-                    }
-                } catch(e) { return false; }
-            };
-
-            const wNatures = document.getElementById('widget-natures');
-            if (!config.showNatures) {
-                wNatures.classList.add('hidden');
-            } else {
-                wNatures.classList.remove('hidden');
-                const natureCounts = {};
-                thisYearCalls.forEach(c => {
-                    const n = c.callNature || 'UNKNOWN';
-                    natureCounts[n] = (natureCounts[n] || 0) + 1;
-                });
-                const sortedNatures = Object.entries(natureCounts)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, limit); 
-                const natureListEl = document.getElementById('stats-natures');
-                natureListEl.innerHTML = '';
-                if (sortedNatures.length === 0) {
-                    natureListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
-                } else {
-                    const maxCount = sortedNatures[0][1];
-                    sortedNatures.forEach(([name, count]) => {
-                        const barWidth = (count / maxCount) * 100; 
-                        const row = document.createElement('div');
-                        row.innerHTML = `
-                            <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
-                                <span>${name}</span>
-                                <span>${count}</span>
-                            </div>
-                            <div class="w-full bg-gray-700 rounded-full h-2">
-                                <div class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
-                            </div>
-                        `;
-                        natureListEl.appendChild(row);
-                    });
+            thisYearCalls.forEach(c => {
+                if (c.dispatchDate) {
+                    try {
+                        // Assuming YYYY-MM-DD
+                        const [y, m, d] = c.dispatchDate.split('-').map(Number);
+                        if (m >= 1 && m <= 12) {
+                            const idx = m - 1;
+                            monthData[idx].total++;
+                            
+                            // Categorize strictly for the breakdown
+                            if (c.responseType === 'Fire') {
+                                monthData[idx].fire++;
+                            } else if (c.responseType === 'EMS') {
+                                monthData[idx].ems++;
+                            } else if (c.responseType === 'Both') {
+                                monthData[idx].both++;
+                            }
+                        }
+                    } catch (e) { console.warn("Date parse error", e); }
                 }
+            });
+
+            const monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const monthlyContainer = document.getElementById('stats-monthly');
+            
+            monthlyContainer.innerHTML = ''; // Clear previous
+
+            monthData.forEach((data, index) => {
+                const box = document.createElement('div');
+                // Styling for the box
+                box.className = "bg-gray-900/50 border border-gray-700 rounded-lg p-2 flex flex-col items-center justify-center hover:bg-gray-700 transition";
+                
+                // Color coding for active vs inactive months
+                const countColor = data.total > 0 ? "text-white" : "text-gray-600";
+                const labelColor = data.total > 0 ? "text-red-500" : "text-gray-500";
+                const subTextColor = data.total > 0 ? "text-gray-300" : "text-gray-600";
+
+                box.innerHTML = `
+                    <span class="text-xs font-bold ${labelColor} uppercase mb-1">${monthLabels[index]}</span>
+                    <span class="text-2xl font-mono font-bold ${countColor} mb-2">${data.total}</span>
+                    
+                    <div class="grid grid-cols-3 w-full gap-1 border-t border-gray-700/50 pt-2 mt-1">
+                        <div class="text-center">
+                            <span class="block text-[8px] text-red-500 font-bold uppercase tracking-wider">FIRE</span>
+                            <span class="block text-xs font-mono font-bold ${subTextColor}">${data.fire}</span>
+                        </div>
+                        <div class="text-center border-l border-gray-700/50">
+                            <span class="block text-[8px] text-blue-400 font-bold uppercase tracking-wider">EMS</span>
+                            <span class="block text-xs font-mono font-bold ${subTextColor}">${data.ems}</span>
+                        </div>
+                        <div class="text-center border-l border-gray-700/50">
+                            <span class="block text-[8px] text-purple-400 font-bold uppercase tracking-wider">BOTH</span>
+                            <span class="block text-xs font-mono font-bold ${subTextColor}">${data.both}</span>
+                        </div>
+                    </div>
+                `;
+                monthlyContainer.appendChild(box);
+            });
+
+            const natureCounts = {};
+            thisYearCalls.forEach(c => {
+                const n = c.callNature || 'UNKNOWN';
+                natureCounts[n] = (natureCounts[n] || 0) + 1;
+            });
+            const sortedNatures = Object.entries(natureCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit); 
+            const natureListEl = document.getElementById('stats-natures');
+            natureListEl.innerHTML = '';
+            if (sortedNatures.length === 0) {
+                natureListEl.innerHTML = '<div class="text-gray-500 text-sm italic">No data available</div>';
+            } else {
+                const maxCount = sortedNatures[0][1];
+                sortedNatures.forEach(([name, count]) => {
+                    const barWidth = (count / maxCount) * 100; 
+                    const row = document.createElement('div');
+                    row.innerHTML = `
+                        <div class="flex justify-between text-xs mb-1 uppercase font-semibold">
+                            <span>${name}</span>
+                            <span>${count}</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
+                        </div>
+                    `;
+                    natureListEl.appendChild(row);
+                });
             }
 
             const wAddresses = document.getElementById('widget-addresses');
