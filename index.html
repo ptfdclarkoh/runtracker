@@ -425,6 +425,15 @@
                 </div>
             </div>
 
+            <!-- Monthly Breakdown (NEW) -->
+            <div id="widget-monthly" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
+                <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">Monthly Breakdown</h3>
+                <div id="stats-monthly" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <!-- Populated by JS -->
+                    <div class="text-gray-500 text-sm italic">No data available</div>
+                </div>
+            </div>
+
             <!-- Detailed Stats Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
@@ -513,15 +522,6 @@
                 <div id="widget-voldispo" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6">
                     <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">EMS Volunteer Dispositions</h3>
                     <div id="stats-vol-dispo" class="space-y-3">
-                        <div class="text-gray-500 text-sm italic">No data available</div>
-                    </div>
-                </div>
-                
-                <!-- Monthly Breakdown (NEW) -->
-                <div id="widget-monthly" class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6 lg:col-span-2">
-                    <h3 class="font-bold text-lg text-white mb-4 uppercase border-b border-gray-700 pb-2">Monthly Breakdown</h3>
-                    <div id="stats-monthly" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        <!-- Populated by JS -->
                         <div class="text-gray-500 text-sm italic">No data available</div>
                     </div>
                 </div>
@@ -1965,15 +1965,18 @@
                         <span class="font-bold text-gray-300 text-sm">${d.name}</span>
                         <span class="font-bold text-white text-lg">${d.total}</span>
                     </div>
-                    <div class="flex gap-1 text-[10px] font-bold uppercase">
-                        <div class="flex-1 bg-red-900/30 text-red-300 p-1 rounded text-center border border-red-900/50" title="Fire">
-                            <i class="fa-solid fa-fire block mb-1"></i> ${d.fire}
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="flex flex-col items-center bg-red-900/20 p-2 rounded border border-red-900/50">
+                            <span class="text-[10px] text-red-400 font-bold uppercase mb-1">FIRE</span>
+                            <span class="text-white font-bold text-sm">${d.fire}</span>
                         </div>
-                        <div class="flex-1 bg-blue-900/30 text-blue-300 p-1 rounded text-center border border-blue-900/50" title="EMS">
-                            <i class="fa-solid fa-star-of-life block mb-1"></i> ${d.ems}
+                        <div class="flex flex-col items-center bg-blue-900/20 p-2 rounded border border-blue-900/50">
+                            <span class="text-[10px] text-blue-400 font-bold uppercase mb-1">EMS</span>
+                            <span class="text-white font-bold text-sm">${d.ems}</span>
                         </div>
-                        <div class="flex-1 bg-purple-900/30 text-purple-300 p-1 rounded text-center border border-purple-900/50" title="Both">
-                            <i class="fa-solid fa-layer-group block mb-1"></i> ${d.both}
+                        <div class="flex flex-col items-center bg-purple-900/20 p-2 rounded border border-purple-900/50">
+                            <span class="text-[10px] text-purple-400 font-bold uppercase mb-1">BOTH</span>
+                            <span class="text-white font-bold text-sm">${d.both}</span>
                         </div>
                     </div>
                 `;
