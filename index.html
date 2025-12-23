@@ -1483,7 +1483,7 @@
                 maxSeq = Math.max(...thisYearCalls.map(c => c.sequence || 0));
             }
             const nextSeq = maxSeq + 1;
-            const seqPadded = String(nextSeq).padStart(4, '0');
+            const seqPadded = String(nextSeq).padStart(5, '0');
             const nextId = `${yearShort}PL${seqPadded}`;
 
             nextIncidentData = {
